@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
+import { AdminReview, TxLink } from "../components/AdminReview";
 import { ScannerDetection } from "../components/ScannerDetection";
 import { AddressLink, CopyButton, Empty, ErrorState, Identicon, Skeleton, StatusBadge } from "../components/ui";
 import { NATIVE_XLM_SAC } from "../config";
@@ -14,6 +16,8 @@ export function BountyDetail() {
   const { t } = useTranslation();
   const idParam = useParams().id;
   const id = Number(idParam);
+  /** Hash of the last wallet-signed action; kept here so it survives the reload it triggers. */
+  const [lastTx, setLastTx] = useState<string | null>(null);
   const state = useAsync(async () => {
     if (!Number.isInteger(id) || id < 1) return null;
     const bounty = await getBounty(id);
@@ -29,12 +33,26 @@ export function BountyDetail() {
       {state.status === "loading" && <DetailSkeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
       {state.status === "success" && state.data === null && <Empty>{t("app.bountyMissing", { id: idParam })}</Empty>}
-      {state.status === "success" && state.data && <Detail bounty={state.data.bounty} claims={state.data.claims} />}
+      {state.status === "success" && lastTx && (
+        <p className="notice">
+          Action submitted. <TxLink hash={lastTx} />
+        </p>
+      )}
+      {state.status === "success" && state.data && (
+        <Detail
+          bounty={state.data.bounty}
+          claims={state.data.claims}
+          onAction={(hash) => {
+            setLastTx(hash);
+            state.reload();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
+function Detail({ bounty, claims, onAction }: { bounty: Bounty; claims: Claim[]; onAction: (txHash: string) => void }) {
   const { t } = useTranslation();
   const { ecosystem, text } = splitIssueRef(bounty.issueRef);
   const timeline = bountyTimeline(bounty, claims);
@@ -70,6 +88,7 @@ function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
               <TimelineItem key={i} event={e} />
             ))}
           </ol>
+          <AdminReview bounty={bounty} claims={claims} onAction={onAction} />
         </section>
 
         <aside className="facts">

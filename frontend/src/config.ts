@@ -9,6 +9,10 @@ export const RPC_URL: string = import.meta.env.VITE_RPC_URL ?? "https://soroban-
 
 export const NETWORK: string = import.meta.env.VITE_NETWORK ?? "testnet";
 
+/** Passphrase transactions must be signed against. Defaults to Stellar testnet. */
+export const NETWORK_PASSPHRASE: string =
+  import.meta.env.VITE_NETWORK_PASSPHRASE ?? "Test SDF Network ; September 2015";
+
 const EXPLORER = `https://stellar.expert/explorer/${NETWORK}`;
 
 export const explorer = {

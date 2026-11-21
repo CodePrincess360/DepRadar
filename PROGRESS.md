@@ -10,6 +10,19 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Admin review controls (reject / release) — #128
+
+- **What:** On a bounty's detail page, a Freighter-connected wallet that
+  equals `get_admin()` sees Reject and Release buttons on each pending claim.
+  Release asks for confirmation first, showing the amount and recipient.
+  Actions are signed in the wallet and submitted through
+  `frontend/src/lib/contract.ts` (`invokeSigned`), and the page refreshes
+  after each one. The transaction hash is shown with a link to the explorer.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #128
+- **Status:** In review.
+
 ### CI — Guard against conflict markers and pasted code fences — #282
 
 - **What:** Adds `scripts/check-source.sh`, a small Bash script that greps
