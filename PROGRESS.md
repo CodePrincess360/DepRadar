@@ -10,6 +10,18 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Live activity feed from contract events — #130
+
+- **What:** `frontend/src/lib/events.ts` pulls the router's recent contract
+  events with `rpc.Server.getEvents` (about one day of ledgers) and decodes
+  each one into a line such as "Claim #1 accepted on bounty #1 — 5 XLM".
+  `frontend/src/components/Activity.tsx` shows the newest 30 on the board,
+  polls every 15 seconds, and links each line to its transaction.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #130
+- **Status:** In review.
+
 ### Frontend — Cancel button for eligible creators — #129
 
 - **What:** `frontend/src/lib/cancel.ts` computes when `cancel_bounty` accepts

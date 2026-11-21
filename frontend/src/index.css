@@ -994,3 +994,19 @@ a.card:hover {
   margin: 0;
   flex-basis: 100%;
 }
+
+/* ─── Activity feed ───────────────────────────────────────────────────── */
+.activity {
+  margin-top: 2rem;
+}
+.activity h2 {
+  margin-bottom: 0.5rem;
+}
+.activity-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}

@@ -14,7 +14,7 @@ export { parseBounty, parseClaim };
 /** Contract address and network, exposed for display (e.g. the About page). */
 export { CONTRACT_ID, NETWORK };
 
-const server = new rpc.Server(RPC_URL);
+export const server = new rpc.Server(RPC_URL);
 
 async function query(method: string, args: Record<string, unknown> = {}): Promise<unknown> {
   const { result } = await server.queryContract(CONTRACT_ID, method, args);
