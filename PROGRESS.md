@@ -10,6 +10,19 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Read token symbol and decimals from the token contract — #132
+
+- **What:** `getTokenInfo()` in `frontend/src/lib/contract.ts` queries `symbol()`
+  and `decimals()` on a bounty's token contract, cached per token; failed
+  lookups are not cached. A new `useTokenInfo` hook
+  (`frontend/src/lib/useTokenInfo.ts`) feeds the values into `formatAmount` and
+  `tokenSymbol` on the bounty card and detail page. Native XLM skips the lookup
+  and keeps 7 decimals; on error the previous behaviour is used.
+- **Tests:** `lib/tokenInfo.test.ts` (mocked RPC, including a 6-decimal token)
+  and new cases in `lib/format.test.ts`. Not run yet.
+- **By:** Druw-agon
+- **Closes:** #132
+
 ### CI — Guard against conflict markers and pasted code fences — #282
 
 - **What:** Adds `scripts/check-source.sh`, a small Bash script that greps

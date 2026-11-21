@@ -15,9 +15,44 @@ export { CONTRACT_ID, NETWORK };
 
 const server = new rpc.Server(RPC_URL);
 
-async function query(method: string, args: Record<string, unknown> = {}): Promise<unknown> {
-  const { result } = await server.queryContract(CONTRACT_ID, method, args);
+async function query(
+  method: string,
+  args: Record<string, unknown> = {},
+  contractId: string = CONTRACT_ID,
+): Promise<unknown> {
+  const { result } = await server.queryContract(contractId, method, args);
   return result;
+}
+
+/** Display metadata read from a token contract (SAC or SEP-41). */
+export interface TokenInfo {
+  symbol: string;
+  decimals: number;
+}
+
+const tokenInfoCache = new Map<string, Promise<TokenInfo>>();
+
+/**
+ * `symbol()` and `decimals()` of a token contract, cached per token. Failed
+ * lookups are not cached, so a later call can retry. Callers should fall back
+ * to the defaults when this rejects.
+ */
+export function getTokenInfo(token: string): Promise<TokenInfo> {
+  const cached = tokenInfoCache.get(token);
+  if (cached) return cached;
+
+  const pending = Promise.all([query("symbol", {}, token), query("decimals", {}, token)]).then(
+    ([symbol, decimals]) => {
+      const places = Number(decimals);
+      if (!Number.isInteger(places) || places < 0 || places > 38) {
+        throw new Error(`Unexpected decimals for token ${token}: ${String(decimals)}`);
+      }
+      return { symbol: String(symbol), decimals: places };
+    },
+  );
+  tokenInfoCache.set(token, pending);
+  pending.catch(() => tokenInfoCache.delete(token));
+  return pending;
 }
 
 type Raw = Record<string, unknown>;

@@ -9,6 +9,7 @@ import { bountyTimeline, type TimelineEvent } from "../lib/insights";
 import { bountyPackage } from "../lib/typosquat";
 import type { Bounty, Claim } from "../lib/types";
 import { useAsync } from "../lib/useAsync";
+import { useTokenInfo } from "../lib/useTokenInfo";
 
 export function BountyDetail() {
   const { t } = useTranslation();
@@ -36,6 +37,7 @@ export function BountyDetail() {
 
 function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
   const { t } = useTranslation();
+  const token = useTokenInfo(bounty.token);
   const { ecosystem, text } = splitIssueRef(bounty.issueRef);
   const timeline = bountyTimeline(bounty, claims);
   const packageName = bountyPackage(bounty);
@@ -57,8 +59,8 @@ function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
         </div>
         <div className="detail-reward">
           <span className="reward-label">{t("bounty.reward")}</span>
-          <span className="reward-amount">{formatAmount(bounty.amount)}</span>
-          <span className="reward-token">{tokenSymbol(bounty.token)}</span>
+          <span className="reward-amount">{formatAmount(bounty.amount, token?.decimals)}</span>
+          <span className="reward-token">{tokenSymbol(bounty.token, token?.symbol)}</span>
         </div>
       </header>
 
@@ -95,7 +97,7 @@ function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
             <div>
               <dt>{t("bounty.token")}</dt>
               <dd>
-                {tokenSymbol(bounty.token)}
+                {tokenSymbol(bounty.token, token?.symbol)}
                 {bounty.token === NATIVE_XLM_SAC ? <span className="muted"> · {t("bounty.native")}</span> : null}{" "}
                 <AddressLink address={bounty.token} />
               </dd>

@@ -119,3 +119,22 @@ describe("refToUrl", () => {
     expect(refToUrl("ftp://example.com/file")).toBeNull();
   });
 });
+
+describe("formatAmount with token decimals", () => {
+  it("uses the token's decimals when given", () => {
+    expect(formatAmount(5_250_000n, 6)).toBe("5.25");
+    expect(formatAmount(1_000_000n, 6)).toBe("1");
+  });
+  it("handles zero-decimal tokens", () => {
+    expect(formatAmount(1_234n, 0)).toBe("1,234");
+  });
+});
+
+describe("tokenSymbol with a known symbol", () => {
+  it("prefers the contract symbol for non-native tokens", () => {
+    expect(tokenSymbol("CBTESTTOKEN6DECIMALSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "USDC")).toBe("USDC");
+  });
+  it("falls back to the shortened address when the symbol is empty", () => {
+    expect(tokenSymbol("CBTESTTOKEN6DECIMALSXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "")).toBe("CBTEST…XXXX");
+  });
+});
