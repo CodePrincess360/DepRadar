@@ -34,23 +34,40 @@ export function Identicon({ address, size = 28 }: { address: string; size?: numb
   );
 }
 
-export function AddressLink({ address, avatar = false }: { address: string; avatar?: boolean }) {
+export function AddressLink({
+  address,
+  avatar = false,
+  copy = false,
+}: {
+  address: string;
+  avatar?: boolean;
+  /** Adds a button that copies the full address. */
+  copy?: boolean;
+}) {
   const href = address.startsWith("C") ? explorer.contract(address) : explorer.account(address);
-  return (
+  const link = (
     <a className="address" href={href} target="_blank" rel="noreferrer" title={address}>
       {avatar && <Identicon address={address} size={20} />}
       <span className="mono">{shortAddress(address)}</span>
     </a>
   );
+  if (!copy) return link;
+  // The copy button sits beside the link, not inside it: a button inside an <a> is invalid HTML.
+  return (
+    <span className="address-copy">
+      {link}
+      <CopyButton value={address} label="Copy address" />
+    </span>
+  );
 }
 
-export function CopyButton({ value }: { value: string }) {
+export function CopyButton({ value, label = "Copy to clipboard" }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
       className="copy"
-      aria-label="Copy to clipboard"
+      aria-label={label}
       onClick={() => {
         navigator.clipboard?.writeText(value).then(() => {
           setCopied(true);

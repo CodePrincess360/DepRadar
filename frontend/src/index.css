@@ -548,6 +548,12 @@ a.card:hover {
   gap: 0.4rem;
   vertical-align: middle;
 }
+.address-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  vertical-align: middle;
+}
 
 /* ─── Detail page ─────────────────────────────────────────────────────── */
 .back {

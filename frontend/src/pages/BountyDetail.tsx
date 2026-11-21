@@ -54,7 +54,7 @@ function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
           <h1>{text}</h1>
           <p className="muted">
             {t("bounty.fundedBy", { address: "", date: "" })}
-            <AddressLink address={bounty.creator} avatar /> {formatDate(bounty.createdAt)}
+            <AddressLink address={bounty.creator} avatar copy /> {formatDate(bounty.createdAt)}
           </p>
         </div>
         <div className="detail-reward">
@@ -99,7 +99,7 @@ function Detail({ bounty, claims }: { bounty: Bounty; claims: Claim[] }) {
               <dd>
                 {tokenSymbol(bounty.token, token?.symbol)}
                 {bounty.token === NATIVE_XLM_SAC ? <span className="muted"> · {t("bounty.native")}</span> : null}{" "}
-                <AddressLink address={bounty.token} />
+                <AddressLink address={bounty.token} copy />
               </dd>
             </div>
             <div>

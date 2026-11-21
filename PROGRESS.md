@@ -10,6 +10,17 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Copy-to-clipboard on addresses — #133
+
+- **What:** `AddressLink` in `frontend/src/components/ui.tsx` takes an optional
+  `copy` prop that adds a `CopyButton` (`aria-label="Copy address"`) beside the
+  link. The bounty detail page enables it for the creator and token addresses.
+  `CopyButton` now accepts an optional `label`.
+- **Tests:** new `AddressLink` cases in `components/ui.test.tsx` with a mocked
+  `navigator.clipboard`. Not run yet.
+- **By:** Druw-agon
+- **Closes:** #133
+
 ### Frontend — Read token symbol and decimals from the token contract — #132
 
 - **What:** `getTokenInfo()` in `frontend/src/lib/contract.ts` queries `symbol()`
