@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { AdminReview, TxLink } from "../components/AdminReview";
+import { CreatorCancel } from "../components/CreatorCancel";
 import { ScannerDetection } from "../components/ScannerDetection";
 import { AddressLink, CopyButton, Empty, ErrorState, Identicon, Skeleton, StatusBadge } from "../components/ui";
 import { NATIVE_XLM_SAC } from "../config";
@@ -127,6 +128,7 @@ function Detail({ bounty, claims, onAction }: { bounty: Bounty; claims: Claim[];
               </dd>
             </div>
           </dl>
+          <CreatorCancel bounty={bounty} onAction={onAction} />
           {packageName && <ScannerDetection name={packageName} />}
         </aside>
       </div>

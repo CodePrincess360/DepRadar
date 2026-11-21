@@ -10,6 +10,18 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Cancel button for eligible creators — #129
+
+- **What:** `frontend/src/lib/cancel.ts` computes when `cancel_bounty` accepts
+  a creator: the deadline has passed with no pending claims, or the 7-day
+  review window has passed. It also blocks cancellation while the contract is
+  paused. On the detail page, the connected creator sees a Cancel & refund
+  button when eligible, or the date it becomes available otherwise.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #129
+- **Status:** In review.
+
 ### Frontend — Admin review controls (reject / release) — #128
 
 - **What:** On a bounty's detail page, a Freighter-connected wallet that
