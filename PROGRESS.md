@@ -10,6 +10,20 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Accessibility pass — #134
+
+- **What:** Static review of `frontend/src/` against the issue. The leaderboard
+  table gets a screen-reader `<caption>` (new `.sr-only` utility in
+  `index.css`) and `scope="col"` on its headers. The existing global
+  `:focus-visible` outline and the global `prefers-reduced-motion` rule already
+  cover links, buttons and CSS animations, and badges already carry text labels,
+  so they are unchanged.
+- **Not done:** the axe before/after report requires running the app in a
+  browser. It has not been produced, so the serious/critical findings are not
+  yet confirmed.
+- **By:** Druw-agon
+- **Refs:** #134 (partial: the axe report is still outstanding, so the issue stays open)
+
 ### Frontend — Copy-to-clipboard on addresses — #133
 
 - **What:** `AddressLink` in `frontend/src/components/ui.tsx` takes an optional
