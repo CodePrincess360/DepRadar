@@ -10,6 +10,21 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Manual light/dark theme toggle — #135
+
+- **What:** A System / Light / Dark toggle in the header
+  (`frontend/src/components/ThemeToggle.tsx`). It sets `data-theme` on `<html>`,
+  and `lib/theme.ts` persists the choice in `localStorage` inside a try/catch.
+  `main.tsx` applies the stored choice before the first render. `index.css` adds
+  a light palette that mirrors the dark tokens, under
+  `:root[data-theme="light"]` and `:root:not([data-theme="dark"])` for
+  `prefers-color-scheme: light`. Hard-coded colours that didn't work on light
+  backgrounds were moved to tokens. The frontend README is updated, since it said
+  the UI was dark-only.
+- **Tests:** not written or run yet.
+- **By:** Druw-agon
+- **Closes:** #135
+
 ### Frontend — Accessibility pass — #134
 
 - **What:** Static review of `frontend/src/` against the issue. The leaderboard

@@ -27,6 +27,9 @@
   --red: #f87171;
   --red-soft: rgba(248, 113, 113, 0.12);
   --slate-soft: rgba(148, 163, 184, 0.12);
+  --topbar-bg: rgba(6, 10, 20, 0.7);
+  --blue-text: #93c5fd;
+  --grad-end: #60a5fa;
 
   --display: "Space Grotesk Variable", system-ui, sans-serif;
   --sans: "Inter Variable", system-ui, "Segoe UI", sans-serif;
@@ -41,6 +44,73 @@
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Light palette. It applies when the OS asks for light and no theme is picked, or when
+ * the user picks Light. The dark tokens above stay the default. Keep both lists in sync.
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+  --bg: #f5f7fb;
+  --bg-2: #eaf0f7;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #ffffff;
+  --surface-hover: rgba(241, 245, 249, 0.95);
+  --topbar-bg: rgba(245, 247, 251, 0.85);
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.2);
+
+  --text: #334155;
+  --text-h: #0f172a;
+  --muted: #5b6b82;
+
+  --teal: #0f766e;
+  --teal-soft: rgba(15, 118, 110, 0.1);
+  --teal-glow: rgba(15, 118, 110, 0.25);
+  --blue: #1d4ed8;
+  --blue-text: #1d4ed8;
+  --green: #15803d;
+  --green-soft: rgba(21, 128, 61, 0.1);
+  --amber: #b45309;
+  --amber-soft: rgba(180, 83, 9, 0.1);
+  --red: #b91c1c;
+  --red-soft: rgba(185, 28, 28, 0.08);
+  --slate-soft: rgba(71, 85, 105, 0.1);
+  --grad-end: #2563eb;
+
+  color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f5f7fb;
+  --bg-2: #eaf0f7;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #ffffff;
+  --surface-hover: rgba(241, 245, 249, 0.95);
+  --topbar-bg: rgba(245, 247, 251, 0.85);
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.2);
+
+  --text: #334155;
+  --text-h: #0f172a;
+  --muted: #5b6b82;
+
+  --teal: #0f766e;
+  --teal-soft: rgba(15, 118, 110, 0.1);
+  --teal-glow: rgba(15, 118, 110, 0.25);
+  --blue: #1d4ed8;
+  --blue-text: #1d4ed8;
+  --green: #15803d;
+  --green-soft: rgba(21, 128, 61, 0.1);
+  --amber: #b45309;
+  --amber-soft: rgba(180, 83, 9, 0.1);
+  --red: #b91c1c;
+  --red-soft: rgba(185, 28, 28, 0.08);
+  --slate-soft: rgba(71, 85, 105, 0.1);
+  --grad-end: #2563eb;
+
+  color-scheme: light;
 }
 
 * {
@@ -154,7 +224,7 @@ button:hover {
   top: 0;
   z-index: 10;
   backdrop-filter: blur(14px);
-  background: rgba(6, 10, 20, 0.7);
+  background: var(--topbar-bg);
   border-bottom: 1px solid var(--border);
 }
 .topbar-inner {
@@ -276,7 +346,7 @@ button:hover {
   margin-bottom: 1.1rem;
 }
 .grad {
-  background: linear-gradient(90deg, var(--teal), #60a5fa);
+  background: linear-gradient(90deg, var(--teal), var(--grad-end));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -465,7 +535,7 @@ a.card:hover {
   padding: 0.05rem 0.5rem;
   border-radius: 6px;
   background: rgba(59, 130, 246, 0.12);
-  color: #93c5fd;
+  color: var(--blue-text);
   font: 600 0.72rem var(--mono);
   text-transform: lowercase;
 }
@@ -560,6 +630,18 @@ a.card:hover {
   align-items: center;
   gap: 0.4rem;
   vertical-align: middle;
+}
+.theme-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.theme-toggle button {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+}
+.theme-toggle .theme-on {
+  border-color: var(--teal);
+  color: var(--teal);
 }
 .address-copy {
   display: inline-flex;

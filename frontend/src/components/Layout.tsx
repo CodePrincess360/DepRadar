@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { CONTRACT_ID, NETWORK, explorer } from "../config";
 import { shortAddress } from "../lib/format";
 import { LanguageSelector } from "./LanguageSelector";
+import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINKS: { key: string; to?: string; href?: string; labelKey: string; className?: string }[] = [
   { key: "leaderboard", to: "/leaderboard", labelKey: "nav.leaderboard" },
@@ -41,6 +42,7 @@ export function Layout() {
                 </a>
               )
             )}
+            <ThemeToggle />
             <LanguageSelector />
             <span className="net">
               <span className="live-dot" aria-hidden />
