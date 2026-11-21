@@ -1,7 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { CONTRACT_ID, NETWORK, explorer } from "../config";
+import {
+  ACTIVE_NETWORK,
+  CONTRACT_ID,
+  NETWORK,
+  availableNetworks,
+  explorer,
+  saveNetworkChoice,
+  type NetworkPreset,
+} from "../config";
 import { shortAddress } from "../lib/format";
 import { LanguageSelector } from "./LanguageSelector";
 
@@ -10,6 +18,50 @@ const NAV_LINKS: { key: string; to?: string; href?: string; labelKey: string; cl
   { key: "about", to: "/about", labelKey: "nav.about" },
   { key: "github", href: "https://github.com/DepRadarOrg/DepRadar", labelKey: "nav.github", className: "btn btn-ghost" },
 ];
+
+/**
+ * Shows the active network, with a picker when more than one is available.
+ * Each network has its own RPC client and contract, so a switch saves the
+ * choice and reloads the page.
+ */
+function NetworkSwitcher() {
+  const networks = availableNetworks();
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  if (networks.length < 2) {
+    return (
+      <span className="net">
+        <span className="live-dot" aria-hidden />
+        {NETWORK}
+      </span>
+    );
+  }
+
+  const onChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value as NetworkPreset["id"];
+    if (id === ACTIVE_NETWORK.id) return;
+    if (!saveNetworkChoice(id)) {
+      // Without storage the choice wouldn't survive the reload, so keep the current network.
+      setSaveFailed(true);
+      return;
+    }
+    window.location.reload();
+  };
+
+  return (
+    <label className="net">
+      <span className="live-dot" aria-hidden />
+      <select aria-label="Stellar network" value={ACTIVE_NETWORK.id} onChange={onChange} className="net-select">
+        {networks.map((n) => (
+          <option key={n.id} value={n.id}>
+            {n.label}
+          </option>
+        ))}
+      </select>
+      {saveFailed && <span className="muted">Could not save network choice</span>}
+    </label>
+  );
+}
 
 export function Layout() {
   const { pathname } = useLocation();
@@ -42,10 +94,7 @@ export function Layout() {
               )
             )}
             <LanguageSelector />
-            <span className="net">
-              <span className="live-dot" aria-hidden />
-              {NETWORK}
-            </span>
+            <NetworkSwitcher />
             <a href={explorer.contract(CONTRACT_ID)} target="_blank" rel="noreferrer" className="mono hide-sm">
               {shortAddress(CONTRACT_ID)}
             </a>

@@ -1010,3 +1010,12 @@ a.card:hover {
   font-size: 0.9rem;
   overflow-wrap: anywhere;
 }
+
+/* ─── Network switcher ────────────────────────────────────────────────── */
+.net-select {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}

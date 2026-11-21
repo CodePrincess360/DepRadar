@@ -10,6 +10,19 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Network switcher (testnet / mainnet config) — #131
+
+- **What:** `frontend/src/config.ts` defines testnet and mainnet presets (RPC
+  URL, passphrase, router contract, native XLM contract, explorer network).
+  The top bar gets a network picker, and the choice is saved in
+  `localStorage` (access wrapped in try/catch). Switching reloads the page,
+  because the RPC client and contract are created at startup. Mainnet is
+  hidden until `VITE_MAINNET_CONTRACT_ID` is set.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #131
+- **Status:** In review.
+
 ### Frontend — Live activity feed from contract events — #130
 
 - **What:** `frontend/src/lib/events.ts` pulls the router's recent contract
