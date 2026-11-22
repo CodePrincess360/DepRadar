@@ -353,3 +353,6 @@ DepRadar is released under the [MIT License](LICENSE).
 
 <!-- handsoff-issue-299 -->
 - #299: [repo-scan] Day 11: Commit signing report
+
+<!-- handsoff-issue-300 -->
+- #300: [repo-scan] Day 12: `--all-refs` and `--prs`
