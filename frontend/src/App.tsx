@@ -15,6 +15,9 @@ const BountyList = lazy(() => import("./pages/BountyList").then((m) => ({ defaul
 const Leaderboard = lazy(() => import("./pages/Leaderboard").then((m) => ({ default: m.Leaderboard })));
 const NewBounty = lazy(() => import("./pages/NewBounty").then((m) => ({ default: m.NewBounty })));
 const Report = lazy(() => import("./pages/Report").then((m) => ({ default: m.Report })));
+const RepoScanReport = lazy(() =>
+  import("./pages/RepoScanReport").then((m) => ({ default: m.RepoScanReport })),
+);
 
 /** Hash routing so the build works on any static host with no rewrite rules. */
 export default function App() {
@@ -31,6 +34,7 @@ export default function App() {
                 <Route path="bounty/:id" element={<BountyDetail />} />
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="report" element={<Report />} />
+                <Route path="repo-scan" element={<RepoScanReport />} />
                 <Route path="address/:id" element={<Address />} />
                 <Route path="about" element={<About />} />
                 <Route path="*" element={<Empty>{t("app.notFound")}</Empty>} />
