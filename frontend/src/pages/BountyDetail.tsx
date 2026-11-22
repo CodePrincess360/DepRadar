@@ -12,6 +12,7 @@ import { bountyTimeline, type TimelineEvent } from "../lib/insights";
 import { bountyPackage } from "../lib/typosquat";
 import type { Bounty, Claim } from "../lib/types";
 import { useAsync } from "../lib/useAsync";
+import { SubmitClaim } from "../components/SubmitClaim";
 
 export function BountyDetail() {
   const { t } = useTranslation();
@@ -47,13 +48,24 @@ export function BountyDetail() {
             setLastTx(hash);
             state.reload();
           }}
+          onChanged={state.reload}
         />
       )}
     </div>
   );
 }
 
-function Detail({ bounty, claims, onAction }: { bounty: Bounty; claims: Claim[]; onAction: (txHash: string) => void }) {
+function Detail({
+  bounty,
+  claims,
+  onAction,
+  onChanged,
+}: {
+  bounty: Bounty;
+  claims: Claim[];
+  onAction: (txHash: string) => void;
+  onChanged: () => void;
+}) {
   const { t } = useTranslation();
   const { ecosystem, text } = splitIssueRef(bounty.issueRef);
   const timeline = bountyTimeline(bounty, claims);
@@ -83,6 +95,7 @@ function Detail({ bounty, claims, onAction }: { bounty: Bounty; claims: Claim[];
 
       <div className="detail-grid">
         <section>
+          {bounty.status === "Open" && <SubmitClaim bounty={bounty} onSubmitted={onChanged} />}
           <h2>{t("bounty.timeline")}</h2>
           <ol className="timeline">
             {timeline.map((e, i) => (
