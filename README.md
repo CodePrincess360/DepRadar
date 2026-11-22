@@ -353,3 +353,6 @@ DepRadar is released under the [MIT License](LICENSE).
 
 <!-- handsoff-issue-304 -->
 - #304: [repo-scan] Day 16: PR mode: scan only what a PR changes
+
+<!-- handsoff-issue-305 -->
+- #305: [repo-scan] Day 17: `--harden` suggestions
