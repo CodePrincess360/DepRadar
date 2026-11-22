@@ -353,3 +353,6 @@ DepRadar is released under the [MIT License](LICENSE).
 
 <!-- handsoff-issue-307 -->
 - #307: [repo-scan] Day 19: `depradar org-scan <org>`
+
+<!-- handsoff-issue-309 -->
+- #309: [repo-scan] Day 21: Incident-response playbook and "write your first rule" tutorial
