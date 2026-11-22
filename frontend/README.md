@@ -68,7 +68,9 @@ src/
 - **Styles use the CSS tokens** in `index.css`, with no hard-coded colors.
   The palette comes from `assets/banner.svg`: deep navy with radar teal,
   plus green (paid/accepted), amber (under review) and red (rejected),
-  which are reserved for status. The UI is dark-only, by design.
+  which are reserved for status. The UI defaults to dark. The header's
+  System / Light / Dark toggle (`components/ThemeToggle.tsx`) sets
+  `data-theme` on `<html>`; the light tokens in `index.css` mirror the dark ones.
 - **Type:** Space Grotesk for headings and numbers, Inter for body text,
   and JetBrains Mono for addresses, IDs and code. All three are
   self-hosted via `@fontsource`, so there are no external font requests.

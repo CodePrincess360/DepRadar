@@ -41,6 +41,7 @@ export function Leaderboard() {
         ) : (
           <div className="card" style={{ padding: "1.5rem", overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <caption className="sr-only">{t("leaderboard.title")}</caption>
               <thead>
                 <tr
                   style={{
@@ -50,12 +51,12 @@ export function Leaderboard() {
                     textTransform: "uppercase",
                   }}
                 >
-                  <th style={{ padding: "0.75rem 1rem", width: "4rem" }}>#</th>
-                  <th style={{ padding: "0.75rem 1rem" }}>{t("leaderboard.researcher")}</th>
-                  <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
+                  <th scope="col" style={{ padding: "0.75rem 1rem", width: "4rem" }}>#</th>
+                  <th scope="col" style={{ padding: "0.75rem 1rem" }}>{t("leaderboard.researcher")}</th>
+                  <th scope="col" style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
                     {t("leaderboard.bountiesSolved")}
                   </th>
-                  <th style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
+                  <th scope="col" style={{ padding: "0.75rem 1rem", textAlign: "right" }}>
                     {t("leaderboard.totalEarned")}
                   </th>
                 </tr>

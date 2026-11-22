@@ -10,6 +10,59 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Frontend — Manual light/dark theme toggle — #135
+
+- **What:** A System / Light / Dark toggle in the header
+  (`frontend/src/components/ThemeToggle.tsx`). It sets `data-theme` on `<html>`,
+  and `lib/theme.ts` persists the choice in `localStorage` inside a try/catch.
+  `main.tsx` applies the stored choice before the first render. `index.css` adds
+  a light palette that mirrors the dark tokens, under
+  `:root[data-theme="light"]` and `:root:not([data-theme="dark"])` for
+  `prefers-color-scheme: light`. Hard-coded colours that didn't work on light
+  backgrounds were moved to tokens. The frontend README is updated, since it said
+  the UI was dark-only.
+- **Tests:** not written or run yet.
+- **By:** Druw-agon
+- **Closes:** #135
+
+### Frontend — Accessibility pass — #134
+
+- **What:** Static review of `frontend/src/` against the issue. The leaderboard
+  table gets a screen-reader `<caption>` (new `.sr-only` utility in
+  `index.css`) and `scope="col"` on its headers. The existing global
+  `:focus-visible` outline and the global `prefers-reduced-motion` rule already
+  cover links, buttons and CSS animations, and badges already carry text labels,
+  so they are unchanged.
+- **Not done:** the axe before/after report requires running the app in a
+  browser. It has not been produced, so the serious/critical findings are not
+  yet confirmed.
+- **By:** Druw-agon
+- **Refs:** #134 (partial: the axe report is still outstanding, so the issue stays open)
+
+### Frontend — Copy-to-clipboard on addresses — #133
+
+- **What:** `AddressLink` in `frontend/src/components/ui.tsx` takes an optional
+  `copy` prop that adds a `CopyButton` (`aria-label="Copy address"`) beside the
+  link. The bounty detail page enables it for the creator and token addresses.
+  `CopyButton` now accepts an optional `label`.
+- **Tests:** new `AddressLink` cases in `components/ui.test.tsx` with a mocked
+  `navigator.clipboard`. Not run yet.
+- **By:** Druw-agon
+- **Closes:** #133
+
+### Frontend — Read token symbol and decimals from the token contract — #132
+
+- **What:** `getTokenInfo()` in `frontend/src/lib/contract.ts` queries `symbol()`
+  and `decimals()` on a bounty's token contract, cached per token; failed
+  lookups are not cached. A new `useTokenInfo` hook
+  (`frontend/src/lib/useTokenInfo.ts`) feeds the values into `formatAmount` and
+  `tokenSymbol` on the bounty card and detail page. Native XLM skips the lookup
+  and keeps 7 decimals; on error the previous behaviour is used.
+- **Tests:** `lib/tokenInfo.test.ts` (mocked RPC, including a 6-decimal token)
+  and new cases in `lib/format.test.ts`. Not run yet.
+- **By:** Druw-agon
+- **Closes:** #132
+
 ### CI — Deploy the dashboard to GitHub Pages — #139
 
 - **What:** Adds [`.github/workflows/pages.yml`](.github/workflows/pages.yml),

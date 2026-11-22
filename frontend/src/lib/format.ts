@@ -1,20 +1,25 @@
 import { NATIVE_XLM_SAC } from "../config";
 
-/** Stellar assets use 7 decimal places. */
-const DECIMALS = 7n;
-const SCALE = 10n ** DECIMALS;
+/** Stellar assets use 7 decimal places; used when a token's own value is unknown. */
+export const DEFAULT_DECIMALS = 7;
 
-/** Formats a raw token amount (e.g. 50000000n stroops) as "5" or "5.25". */
-export function formatAmount(raw: bigint): string {
+/**
+ * Formats a raw token amount (e.g. 50000000n stroops) as "5" or "5.25".
+ * `decimals` comes from the token contract; it defaults to 7 (Stellar assets).
+ */
+export function formatAmount(raw: bigint, decimals: number = DEFAULT_DECIMALS): string {
+  const scale = 10n ** BigInt(decimals);
   const negative = raw < 0n;
   const abs = negative ? -raw : raw;
-  const whole = abs / SCALE;
-  const frac = (abs % SCALE).toString().padStart(Number(DECIMALS), "0").replace(/0+$/, "");
+  const whole = abs / scale;
+  const frac = decimals === 0 ? "" : (abs % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
   return `${negative ? "-" : ""}${whole.toLocaleString("en-US")}${frac ? `.${frac}` : ""}`;
 }
 
-export function tokenSymbol(token: string): string {
-  return token === NATIVE_XLM_SAC ? "XLM" : shortAddress(token);
+/** "XLM" for native, the token's `symbol()` when known, else a shortened address. */
+export function tokenSymbol(token: string, symbol?: string | null): string {
+  if (token === NATIVE_XLM_SAC) return "XLM";
+  return symbol || shortAddress(token);
 }
 
 /** "GCFFP6…4D6A" */

@@ -4,6 +4,12 @@ import { initReactI18next } from "react-i18next";
 const resources = {
   en: {
     translation: {
+      theme: {
+        label: "Colour theme",
+        system: "System",
+        light: "Light",
+        dark: "Dark",
+      },
       nav: {
         about: "About",
         leaderboard: "Leaderboard",

@@ -5,6 +5,7 @@ import { CONTRACT_ID, NETWORK, explorer } from "../config";
 import { shortAddress } from "../lib/format";
 import { WalletButton } from "../wallet/WalletButton";
 import { LanguageSelector } from "./LanguageSelector";
+import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINKS: { key: string; to?: string; href?: string; labelKey: string; className?: string }[] = [
   { key: "new", to: "/new", labelKey: "nav.newBounty" },
@@ -43,6 +44,7 @@ export function Layout() {
                 </a>
               )
             )}
+            <ThemeToggle />
             <WalletButton />
             <LanguageSelector />
             <span className="net">

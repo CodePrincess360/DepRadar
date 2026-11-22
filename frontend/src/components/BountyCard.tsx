@@ -1,11 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { formatAmount, refToUrl, relativeTime, splitIssueRef, tokenSymbol } from "../lib/format";
+import { useTokenInfo } from "../lib/useTokenInfo";
 import type { Bounty } from "../lib/types";
 import { Identicon, Skeleton, StatusBadge } from "./ui";
 
 export function BountyCard({ bounty }: { bounty: Bounty }) {
   const { t } = useTranslation();
+  const token = useTokenInfo(bounty.token);
   const { ecosystem, text } = splitIssueRef(bounty.issueRef);
   const issueUrl = refToUrl(bounty.issueRef);
   const open = bounty.status === "Open";
@@ -33,8 +35,8 @@ export function BountyCard({ bounty }: { bounty: Bounty }) {
       </h3>
 
       <div className="card-reward">
-        <span className="reward-amount">{formatAmount(bounty.amount)}</span>
-        <span className="reward-token">{tokenSymbol(bounty.token)}</span>
+        <span className="reward-amount">{formatAmount(bounty.amount, token?.decimals)}</span>
+        <span className="reward-token">{tokenSymbol(bounty.token, token?.symbol)}</span>
       </div>
 
       <div className="card-foot">

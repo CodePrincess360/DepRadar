@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ErrorState, StatusBadge } from "./ui";
+import { AddressLink, ErrorState, StatusBadge } from "./ui";
 
 describe("StatusBadge", () => {
   it("renders the status with a status-specific class", () => {
@@ -24,5 +24,23 @@ describe("ErrorState", () => {
     const alert = within(container).getByRole("alert");
     expect(alert).toHaveTextContent("Can't reach the Stellar network.");
     expect(alert).not.toHaveTextContent("Failed to fetch");
+  });
+});
+
+describe("AddressLink", () => {
+  const ADDRESS = "GCFFP6RU6C3JOZBIUNZN2ELJAITUZ3HWEOUUCFXIAHE6M2GHVHZB4D6A";
+
+  it("renders no copy button by default", () => {
+    render(<AddressLink address={ADDRESS} />);
+    expect(screen.queryByRole("button", { name: "Copy address" })).toBeNull();
+  });
+
+  it("copies the full address with the copy option", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(<AddressLink address={ADDRESS} copy />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
+    expect(writeText).toHaveBeenCalledWith(ADDRESS);
+    expect(await screen.findByText("Copied")).toBeInTheDocument();
   });
 });
