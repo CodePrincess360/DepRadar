@@ -1514,3 +1514,9 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** ALLEN-AYODEJI
 - **Closes:** #154
 - **Status:** In review.
+
+- #310 — Scan checked-out repositories without executing their contents and encrypt nightly ecosystem reports for the disclosure team (@willy-de7)
+- #311 — Render and serve clean, findings, or stale README badges from repository scan reports (@willy-de7)
+- #312 — Open testnet bounties from confirmed findings and persist the SHA-256 report proof on the router (@willy-de7)
+- #313 — Record private notification and enforce the disclosure embargo for report and bounty publication (@willy-de7)
+- #314 — Fetch signed community indicators and verify the exact rule bytes before scanning (@willy-de7)

@@ -415,7 +415,10 @@ fn start_mock_osv_server() -> mockito::ServerGuard {
         .with_body(EXPLAIN_ADVISORY_JSON)
         .create();
     server
-        .mock("GET", mockito::Matcher::Regex(r"^/v1/vulns/.*$".to_string()))
+        .mock(
+            "GET",
+            mockito::Matcher::Regex(r"^/v1/vulns/.*$".to_string()),
+        )
         .with_status(404)
         .with_header("content-type", "application/json")
         .with_body(r#"{"code":5,"message":"not found"}"#)
@@ -452,10 +455,7 @@ fn explain_text_prints_advisory_details() {
         stdout.contains("example-package"),
         "affected package missing: {stdout}"
     );
-    assert!(
-        stdout.contains("1.2.3"),
-        "fixed version missing: {stdout}"
-    );
+    assert!(stdout.contains("1.2.3"), "fixed version missing: {stdout}");
     assert!(
         stdout.contains("https://example.com/advisories/GHSA-aaaa-bbbb-cccc"),
         "references missing: {stdout}"
