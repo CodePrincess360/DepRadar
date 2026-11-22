@@ -21,6 +21,10 @@ description = "DepRadar off-chain crawler/scanner toolkit"
 [lib]
 path = "src/lib.rs"
 
+[[bin]]
+name = "depradar"
+path = "src/bin/depradar.rs"
+
 [features]
 # Non-blocking OSV client (`query_osv_async` / `query_osv_batch_async`).
 async = []
