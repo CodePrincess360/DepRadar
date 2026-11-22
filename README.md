@@ -348,3 +348,8 @@ Found a vulnerability in DepRadar itself? Please report it privately — see
 ## License
 
 DepRadar is released under the [MIT License](LICENSE).
+
+## Handsoff notes
+
+<!-- handsoff-issue-299 -->
+- #299: [repo-scan] Day 11: Commit signing report
