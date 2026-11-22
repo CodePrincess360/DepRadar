@@ -10,6 +10,54 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### CI — Deploy the dashboard to GitHub Pages — #139
+
+- **What:** Adds [`.github/workflows/pages.yml`](.github/workflows/pages.yml),
+  which builds `frontend/` on pushes to `main` (and on manual dispatch) and
+  deploys it with `actions/deploy-pages`. The build sets `VITE_SITE_URL` to
+  the Pages URL so the social-preview tags get an absolute image URL. The
+  live URL is added to the README's dashboard section.
+- **Verified:** Not yet — the workflow has not been run on a fork or on this
+  PR, and the live page has not been loaded.
+- **By:** Farez Abel
+- **Closes:** #139
+
+### Frontend — Address profile page — #138
+
+- **What:** Adds `/address/:id` (`frontend/src/pages/Address.tsx`), listing
+  the bounties an account has funded and the claims it has submitted. It
+  scans all bounties with the contract getters, since there is no claimant
+  index yet. `AddressLink` now opens this page, with a small external-link
+  icon next to it for the explorer. Contract addresses (such as tokens) keep
+  linking straight to the explorer, since they have no profile.
+- **Verified:** Not yet — the component test (`Address.test.tsx`, with the
+  contract layer mocked) was written but not run.
+- **By:** Farez Abel
+- **Closes:** #138
+
+### Frontend — Live deadline countdown and review-window indicator — #137
+
+- **What:** Open bounties on the detail page show a live countdown
+  (`3d 4h left`) that refreshes every minute (`frontend/src/lib/useNow.ts`).
+  After the deadline, the page shows "Under review — creator can reclaim in
+  X", based on the 7-day `REVIEW_WINDOW_SECS` from the contract. Duration
+  and window helpers live in `frontend/src/lib/format.ts`, with boundary
+  tests at the deadline and the reclaim time.
+- **Verified:** Not yet — tests and build were not run for this change.
+- **By:** Farez Abel
+- **Closes:** #137
+
+### Frontend — Code-split the Stellar SDK out of the initial bundle — #136
+
+- **What:** `frontend/src/App.tsx` now loads every page with `React.lazy`
+  behind a `Suspense` boundary, so `@stellar/stellar-sdk` (pulled in by
+  `lib/contract.ts`) is no longer part of the main chunk. The shell and
+  navigation render immediately while a page's chunk loads.
+- **Verified:** Not yet — build sizes before/after are to be reported from
+  `vite build` on the PR.
+- **By:** Farez Abel
+- **Closes:** #136
+
 ### Frontend — Network switcher (testnet / mainnet config) — #131
 
 - **What:** `frontend/src/config.ts` defines testnet and mainnet presets (RPC
