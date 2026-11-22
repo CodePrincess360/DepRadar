@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Activity } from "../components/Activity";
 import { BountyCard, BountyCardSkeleton } from "../components/BountyCard";
 import { Radar } from "../components/Radar";
 import { Empty, ErrorState, Skeleton } from "../components/ui";
@@ -196,6 +197,8 @@ export function BountyList() {
           </div>
         )}
       </section>
+
+      <Activity />
     </>
   );
 }

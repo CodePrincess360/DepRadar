@@ -111,6 +111,56 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** Farez Abel
 - **Closes:** #136
 
+### Frontend — Network switcher (testnet / mainnet config) — #131
+
+- **What:** `frontend/src/config.ts` defines testnet and mainnet presets (RPC
+  URL, passphrase, router contract, native XLM contract, explorer network).
+  The top bar gets a network picker, and the choice is saved in
+  `localStorage` (access wrapped in try/catch). Switching reloads the page,
+  because the RPC client and contract are created at startup. Mainnet is
+  hidden until `VITE_MAINNET_CONTRACT_ID` is set.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #131
+- **Status:** In review.
+
+### Frontend — Live activity feed from contract events — #130
+
+- **What:** `frontend/src/lib/events.ts` pulls the router's recent contract
+  events with `rpc.Server.getEvents` (about one day of ledgers) and decodes
+  each one into a line such as "Claim #1 accepted on bounty #1 — 5 XLM".
+  `frontend/src/components/Activity.tsx` shows the newest 30 on the board,
+  polls every 15 seconds, and links each line to its transaction.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #130
+- **Status:** In review.
+
+### Frontend — Cancel button for eligible creators — #129
+
+- **What:** `frontend/src/lib/cancel.ts` computes when `cancel_bounty` accepts
+  a creator: the deadline has passed with no pending claims, or the 7-day
+  review window has passed. It also blocks cancellation while the contract is
+  paused. On the detail page, the connected creator sees a Cancel & refund
+  button when eligible, or the date it becomes available otherwise.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #129
+- **Status:** In review.
+
+### Frontend — Admin review controls (reject / release) — #128
+
+- **What:** On a bounty's detail page, a Freighter-connected wallet that
+  equals `get_admin()` sees Reject and Release buttons on each pending claim.
+  Release asks for confirmation first, showing the amount and recipient.
+  Actions are signed in the wallet and submitted through
+  `frontend/src/lib/contract.ts` (`invokeSigned`), and the page refreshes
+  after each one. The transaction hash is shown with a link to the explorer.
+- **Verified:** Not verified. Tests, lint and build were skipped for this
+  change at the author's request.
+- **Closes:** #128
+- **Status:** In review.
+
 ### Frontend — Submit-claim form on the bounty page — #127
 
 - **What:** On open bounties, the bounty page shows a "Submit claim" form with

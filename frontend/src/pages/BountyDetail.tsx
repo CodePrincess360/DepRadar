@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
+import { AdminReview, TxLink } from "../components/AdminReview";
+import { CreatorCancel } from "../components/CreatorCancel";
 import { ScannerDetection } from "../components/ScannerDetection";
 import { SubmitClaim } from "../components/SubmitClaim";
 import { AddressLink, CopyButton, Empty, ErrorState, Identicon, Skeleton, StatusBadge } from "../components/ui";
@@ -27,6 +30,8 @@ export function BountyDetail() {
   const { t } = useTranslation();
   const idParam = useParams().id;
   const id = Number(idParam);
+  /** Hash of the last wallet-signed action; kept here so it survives the reload it triggers. */
+  const [lastTx, setLastTx] = useState<string | null>(null);
   const state = useAsync(async () => {
     if (!Number.isInteger(id) || id < 1) return null;
     const bounty = await getBounty(id);
@@ -42,12 +47,37 @@ export function BountyDetail() {
       {state.status === "loading" && <DetailSkeleton />}
       {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
       {state.status === "success" && state.data === null && <Empty>{t("app.bountyMissing", { id: idParam })}</Empty>}
-      {state.status === "success" && state.data && <Detail bounty={state.data.bounty} claims={state.data.claims} onChanged={state.reload} />}
+      {state.status === "success" && lastTx && (
+        <p className="notice">
+          Action submitted. <TxLink hash={lastTx} />
+        </p>
+      )}
+      {state.status === "success" && state.data && (
+        <Detail
+          bounty={state.data.bounty}
+          claims={state.data.claims}
+          onAction={(hash) => {
+            setLastTx(hash);
+            state.reload();
+          }}
+          onChanged={state.reload}
+        />
+      )}
     </div>
   );
 }
 
-function Detail({ bounty, claims, onChanged }: { bounty: Bounty; claims: Claim[]; onChanged: () => void }) {
+function Detail({
+  bounty,
+  claims,
+  onAction,
+  onChanged,
+}: {
+  bounty: Bounty;
+  claims: Claim[];
+  onAction: (txHash: string) => void;
+  onChanged: () => void;
+}) {
   const { t } = useTranslation();
   const token = useTokenInfo(bounty.token);
   const { ecosystem, text } = splitIssueRef(bounty.issueRef);
@@ -87,6 +117,7 @@ function Detail({ bounty, claims, onChanged }: { bounty: Bounty; claims: Claim[]
               <TimelineItem key={i} event={e} />
             ))}
           </ol>
+          <AdminReview bounty={bounty} claims={claims} onAction={onAction} />
         </section>
 
         <aside className="facts">
@@ -127,6 +158,7 @@ function Detail({ bounty, claims, onChanged }: { bounty: Bounty; claims: Claim[]
               </dd>
             </div>
           </dl>
+          <CreatorCancel bounty={bounty} onAction={onAction} />
           {bounty.status === "Open" && pastDeadline && <ReviewNotice deadline={bounty.deadline} now={now} />}
           {packageName && <ScannerDetection name={packageName} />}
         </aside>

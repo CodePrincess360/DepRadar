@@ -1085,6 +1085,59 @@ a.card:hover {
   }
 }
 
+/* ─── Wallet actions on the bounty detail page ───────────────────────── */
+.notice,
+.error {
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.error {
+  color: #f87171;
+}
+.admin-review {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.admin-review h3 {
+  margin: 0;
+}
+.claim-review {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line, #334155);
+  border-radius: 8px;
+}
+.claim-review-actions,
+.confirm-release {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.confirm-release p {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+/* ─── Activity feed ───────────────────────────────────────────────────── */
+.activity {
+  margin-top: 2rem;
+}
+.activity h2 {
+  margin-bottom: 0.5rem;
+}
+.activity-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 /* Bounty board search */
 .search-field {
   display: flex;
@@ -1111,6 +1164,15 @@ a.card:hover {
   background: var(--surface-solid);
   color: var(--text-h);
   font: inherit;
+}
+
+/* ─── Network switcher ────────────────────────────────────────────────── */
+.net-select {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 /* ---- Pagination, wallet and forms ---- */

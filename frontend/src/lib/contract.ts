@@ -1,16 +1,17 @@
 /**
- * Read-only access to the deprader_router contract. Every call is a
- * simulated `queryContract` — nothing is signed or submitted, and no wallet
- * is needed.
+ * Access to the deprader_router contract. Reads are simulated `queryContract`
+ * calls that need no wallet. The admin and creator actions at the bottom are
+ * the only calls that sign and submit, and they run only on user request.
  */
-import { rpc } from "@stellar/stellar-sdk";
-import { CONTRACT_ID, NETWORK, RPC_URL } from "../config";
+import { Address, BASE_FEE, Contract, TransactionBuilder, nativeToScVal, rpc, xdr } from "@stellar/stellar-sdk";
+import { CONTRACT_ID, NETWORK, NETWORK_PASSPHRASE, RPC_URL } from "../config";
+import { signXdr } from "./wallet";
 import type { Bounty, BountyStatus, Claim, ClaimStatus } from "./types";
 
 /** Contract address and network, exposed for display (e.g. the About page). */
 export { CONTRACT_ID, NETWORK };
 
-const server = new rpc.Server(RPC_URL);
+export const server = new rpc.Server(RPC_URL);
 
 async function query(
   method: string,
@@ -167,4 +168,58 @@ export async function listClaims(bounty: Bounty): Promise<Claim[]> {
   const ids = Array.from({ length: bounty.claimCount }, (_, i) => i);
   const claims = await Promise.all(ids.map((id) => getClaim(bounty.id, id)));
   return claims.filter((c): c is Claim => c !== null);
+}
+
+/** Whether the contract is paused. `cancel_bounty` refuses non-admin callers while it is. */
+export async function isPaused(): Promise<boolean> {
+  return Boolean(await query("is_paused"));
+}
+
+/**
+ * Submits a state-changing contract call signed by the connected wallet and
+ * waits for it to land. Resolves with the transaction hash; rejects with a
+ * readable message if simulation, signing, submission or execution fails.
+ */
+export async function invokeSigned(source: string, method: string, args: xdr.ScVal[]): Promise<string> {
+  const account = await server.getAccount(source);
+  const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE })
+    .addOperation(new Contract(CONTRACT_ID).call(method, ...args))
+    .setTimeout(60)
+    .build();
+
+  const prepared = await server.prepareTransaction(tx);
+  const signed = TransactionBuilder.fromXDR(await signXdr(prepared.toXDR()), NETWORK_PASSPHRASE);
+
+  const sent = await server.sendTransaction(signed);
+  if (sent.status === "ERROR") throw new Error(`Transaction rejected by the network (${sent.status}).`);
+
+  const result = await server.pollTransaction(sent.hash, { attempts: 30 });
+  if (result.status !== "SUCCESS") throw new Error(`Transaction failed on-chain (${result.status}).`);
+  return sent.hash;
+}
+
+/** Wallet-signed call to `release(caller, bounty_id, claim_id)`. */
+export function releaseClaim(admin: string, bountyId: number, claimId: number): Promise<string> {
+  return invokeSigned(admin, "release", [
+    new Address(admin).toScVal(),
+    nativeToScVal(bountyId, { type: "u64" }),
+    nativeToScVal(claimId, { type: "u32" }),
+  ]);
+}
+
+/** Wallet-signed call to `reject_claim(caller, bounty_id, claim_id)`. */
+export function rejectClaim(admin: string, bountyId: number, claimId: number): Promise<string> {
+  return invokeSigned(admin, "reject_claim", [
+    new Address(admin).toScVal(),
+    nativeToScVal(bountyId, { type: "u64" }),
+    nativeToScVal(claimId, { type: "u32" }),
+  ]);
+}
+
+/** Wallet-signed call to `cancel_bounty(caller, bounty_id)`. */
+export function cancelBounty(caller: string, bountyId: number): Promise<string> {
+  return invokeSigned(caller, "cancel_bounty", [
+    new Address(caller).toScVal(),
+    nativeToScVal(bountyId, { type: "u64" }),
+  ]);
 }
