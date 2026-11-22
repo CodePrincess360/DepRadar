@@ -359,3 +359,6 @@ DepRadar is released under the [MIT License](LICENSE).
 
 <!-- handsoff-issue-301 -->
 - #301: [repo-scan] Day 13: Known-malicious packages in lockfiles
+
+<!-- handsoff-issue-302 -->
+- #302: [repo-scan] Day 14: `repo-scan --baseline`
