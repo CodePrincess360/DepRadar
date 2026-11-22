@@ -3,10 +3,12 @@ import { useTranslation, Trans } from "react-i18next";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { CONTRACT_ID, NETWORK, explorer } from "../config";
 import { shortAddress } from "../lib/format";
+import { WalletButton } from "../wallet/WalletButton";
 import { LanguageSelector } from "./LanguageSelector";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_LINKS: { key: string; to?: string; href?: string; labelKey: string; className?: string }[] = [
+  { key: "new", to: "/new", labelKey: "nav.newBounty" },
   { key: "leaderboard", to: "/leaderboard", labelKey: "nav.leaderboard" },
   { key: "about", to: "/about", labelKey: "nav.about" },
   { key: "github", href: "https://github.com/DepRadarOrg/DepRadar", labelKey: "nav.github", className: "btn btn-ghost" },
@@ -43,6 +45,7 @@ export function Layout() {
               )
             )}
             <ThemeToggle />
+            <WalletButton />
             <LanguageSelector />
             <span className="net">
               <span className="live-dot" aria-hidden />
