@@ -348,3 +348,8 @@ Found a vulnerability in DepRadar itself? Please report it privately — see
 ## License
 
 DepRadar is released under the [MIT License](LICENSE).
+
+## Handsoff notes
+
+<!-- handsoff-issue-316 -->
+- #316: [repo-scan] Day 28: Fast scanning for large monorepos
