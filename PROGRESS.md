@@ -10,6 +10,23 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — uv.lock parser — #320
+
+- **What:** Adds `parse_uv_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and
+  registers `uv.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `PyPI`). Every `[[package]]` entry is read
+  with PEP 503 name normalization, except the project itself and workspace
+  members (`virtual` / `editable` sources). A package is `direct` when a
+  project package lists it in `dependencies`, `optional-dependencies` or
+  `dev-dependencies`, and `dev` when it is listed only in
+  `dev-dependencies`. Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/uv.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #320
+- **Status:** In review.
+
 ### scanner — bun.lock parser — #319
 
 - **What:** Adds `parse_bun_lock` in [`bun.rs`](src/lockfile/bun.rs) and

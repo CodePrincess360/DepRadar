@@ -133,3 +133,29 @@ fn malformed_bun_lock_is_an_error() {
 
     assert!(parse_lockfile(&path).is_err());
 }
+
+#[test]
+fn uv_lock_marks_project_dependencies_direct() {
+    let parsed = parse_lockfile(&fixture("uv.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::PyPI);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("certifi", Some("2024.8.30"), false),
+            ("iniconfig", Some("2.0.0"), false),
+            ("pytest", Some("8.3.3"), true),
+            ("requests", Some("2.32.3"), true),
+            ("typing-extensions", Some("4.12.2"), true),
+        ]
+    );
+}
+
+#[test]
+fn malformed_uv_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("uv.lock");
+    std::fs::write(&path, "[[package]\nname = ").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}

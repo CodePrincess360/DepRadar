@@ -48,6 +48,8 @@ pub enum LockfileKind {
     PackageJson,
     /// Bun `bun.lock` (text lockfile).
     BunLock,
+    /// uv `uv.lock`.
+    UvLock,
 }
 
 /// Works out a file's [`LockfileKind`] from its file name, ignoring the
@@ -63,6 +65,7 @@ pub fn detect(path: impl AsRef<Path>) -> Option<LockfileKind> {
         "Cargo.lock" => LockfileKind::CargoLock,
         "package.json" => LockfileKind::PackageJson,
         "bun.lock" => LockfileKind::BunLock,
+        "uv.lock" => LockfileKind::UvLock,
         name if name.starts_with("requirements") && name.ends_with(".txt") => {
             LockfileKind::Requirements
         }
@@ -147,13 +150,16 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::PnpmLock => pnpm::parse_pnpm_lock,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
         LockfileKind::BunLock => bun::parse_bun_lock,
+        LockfileKind::UvLock => pypi::parse_uv_lock,
         LockfileKind::Requirements | LockfileKind::PackageLock => {
             unreachable!("handled above")
         }
     };
     let dependencies = parse(&contents).map_err(|err| LockfileError::Invalid(err.to_string()))?;
     let ecosystem = match kind {
-        LockfileKind::PipfileLock | LockfileKind::PoetryLock => Ecosystem::PyPI,
+        LockfileKind::PipfileLock | LockfileKind::PoetryLock | LockfileKind::UvLock => {
+            Ecosystem::PyPI
+        }
         LockfileKind::CargoLock => Ecosystem::CratesIo,
         _ => Ecosystem::Npm,
     };
@@ -183,6 +189,7 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Dependency>, ParseError>
         LockfileKind::Requirements => pypi::parse_requirements,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
         LockfileKind::BunLock => bun::parse_bun_lock,
+        LockfileKind::UvLock => pypi::parse_uv_lock,
         LockfileKind::PackageLock => return Err(ParseError::Unsupported(kind)),
     };
     parse(&fs::read_to_string(path)?)
@@ -278,6 +285,7 @@ mod tests {
             ("Cargo.lock", Some(LockfileKind::CargoLock)),
             ("package.json", Some(LockfileKind::PackageJson)),
             ("bun.lock", Some(LockfileKind::BunLock)),
+            ("uv.lock", Some(LockfileKind::UvLock)),
             ("some/project/Cargo.lock", Some(LockfileKind::CargoLock)),
             ("Gemfile.lock", None),
             ("requirements.in", None),

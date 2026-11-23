@@ -1,7 +1,7 @@
 //! Python (PyPI) lockfile and manifest parsers: `Pipfile.lock`,
-//! `requirements.txt` and `poetry.lock`.
+//! `requirements.txt`, `poetry.lock` and `uv.lock`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
@@ -223,6 +223,89 @@ pub fn parse_poetry_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> 
         .collect())
 }
 
+/// The parts of a `uv.lock` we read: the `[[package]]` array.
+#[derive(Debug, Deserialize)]
+struct UvLock {
+    #[serde(default)]
+    package: Vec<UvPackage>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct UvPackage {
+    name: String,
+    /// Absent for some non-registry sources.
+    version: Option<String>,
+    /// `{ registry = ".." }`, `{ git = ".." }`, `{ virtual = "." }`,
+    /// `{ editable = "." }`, ...
+    #[serde(default)]
+    source: BTreeMap<String, toml::Value>,
+    #[serde(default)]
+    dependencies: Vec<UvDependencyRef>,
+    #[serde(default)]
+    optional_dependencies: BTreeMap<String, Vec<UvDependencyRef>>,
+    #[serde(default)]
+    dev_dependencies: BTreeMap<String, Vec<UvDependencyRef>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UvDependencyRef {
+    name: String,
+}
+
+/// Parses a uv `uv.lock` into its locked dependencies.
+///
+/// The project itself (and any workspace members) appear as packages with a
+/// `virtual` or `editable` source; they are not returned. Every other
+/// `[[package]]` entry is, with PEP 503 name normalization. A package is
+/// `direct` when a project package lists it in `dependencies`,
+/// `optional-dependencies` or `dev-dependencies`, and `dev` when it is listed
+/// only in `dev-dependencies`. Transitive packages are never marked `dev`,
+/// since the lockfile doesn't record it for them.
+pub fn parse_uv_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> {
+    let lock: UvLock = toml::from_str(contents)?;
+
+    let is_project = |package: &UvPackage| {
+        package.source.contains_key("virtual") || package.source.contains_key("editable")
+    };
+    let names = |refs: &[UvDependencyRef]| {
+        refs.iter()
+            .map(|r| normalize_pypi_name(&r.name))
+            .collect::<Vec<_>>()
+    };
+
+    let mut runtime = BTreeSet::new();
+    let mut dev_only = BTreeSet::new();
+    for project in lock.package.iter().filter(|p| is_project(p)) {
+        runtime.extend(names(&project.dependencies));
+        for refs in project.optional_dependencies.values() {
+            runtime.extend(names(refs));
+        }
+        for refs in project.dev_dependencies.values() {
+            dev_only.extend(names(refs));
+        }
+    }
+
+    Ok(lock
+        .package
+        .iter()
+        .filter(|p| !is_project(p))
+        .map(|package| {
+            let name = normalize_pypi_name(&package.name);
+            let in_runtime = runtime.contains(&name);
+            let dev = !in_runtime && dev_only.contains(&name);
+            Dependency {
+                direct: in_runtime || dev,
+                dev,
+                version: package.version.clone(),
+                ecosystem: Ecosystem::PyPI,
+                path: Vec::new(),
+                name,
+            }
+        })
+        .collect())
+}
+
 /// PEP 503 name normalization: lowercase, with each run of `-`, `_` and `.`
 /// replaced by a single `-`.
 fn normalize_pypi_name(name: &str) -> String {
@@ -431,6 +514,46 @@ mod tests {
     #[test]
     fn invalid_poetry_toml_is_an_error() {
         assert!(parse_poetry_lock("[[package").is_err());
+    }
+
+    const UV_LOCK: &str = include_str!("../../tests/fixtures/uv.lock");
+
+    #[test]
+    fn uv_lock_marks_project_dependencies_direct() {
+        let deps = parse_uv_lock(UV_LOCK).unwrap();
+        // The virtual `my-app` project package is not a dependency.
+        assert_eq!(deps.len(), 6);
+        assert!(deps.iter().all(|d| d.name != "my-app"));
+        assert!(deps.iter().all(|d| d.ecosystem == Ecosystem::PyPI));
+
+        let requests = find(&deps, "requests");
+        assert_eq!(requests.version.as_deref(), Some("2.32.3"));
+        assert!(requests.direct);
+        assert!(!requests.dev);
+
+        let pytest = find(&deps, "pytest");
+        assert!(pytest.direct);
+        assert!(pytest.dev);
+
+        let certifi = find(&deps, "certifi");
+        assert_eq!(certifi.version.as_deref(), Some("2024.8.30"));
+        assert!(!certifi.direct);
+        assert!(!certifi.dev);
+
+        // Pulled in by the dev-only pytest, but not declared by the project.
+        assert!(!find(&deps, "iniconfig").direct);
+    }
+
+    #[test]
+    fn uv_lock_without_packages_is_empty() {
+        assert!(parse_uv_lock("version = 1\n").unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalid_uv_lock_is_an_error() {
+        assert!(parse_uv_lock("[[package").is_err());
+        // `name` is required on every package.
+        assert!(parse_uv_lock("[[package]]\nversion = \"1.0\"\n").is_err());
     }
 
     #[test]
