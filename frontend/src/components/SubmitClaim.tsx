@@ -6,6 +6,7 @@ import { formatDate } from "../lib/format";
 import { MAX_REF_BYTES } from "../lib/newBounty";
 import type { Bounty } from "../lib/types";
 import { invokeContract } from "../lib/tx";
+import { useNow } from "../lib/useNow";
 import { useAsync } from "../lib/useAsync";
 import { useWallet } from "../wallet/WalletContext";
 import { WalletButton } from "../wallet/WalletButton";
@@ -28,7 +29,7 @@ export function SubmitClaim({ bounty, onSubmitted }: { bounty: Bounty; onSubmitt
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(useNow());
   let blocked: string | null = null;
   if (!address) blocked = t("claim.connectFirst");
   else if (!wallet.networkMatches) blocked = t("claim.networkWarning");

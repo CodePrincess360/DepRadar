@@ -144,7 +144,7 @@ impl IgnoreEntry {
             (Some(advisory), FindingKind::Vulnerability { advisory_id }) => {
                 advisory.eq_ignore_ascii_case(advisory_id)
             }
-            (Some(_), FindingKind::Typosquat { .. }) => false,
+            (Some(_), _) => false,
         }
     }
 }

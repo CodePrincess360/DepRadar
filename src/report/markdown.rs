@@ -179,6 +179,10 @@ fn write_finding_details(out: &mut String, finding: &crate::model::Finding) -> s
                 "\n**Recommendation**: Update to a patched version or find an alternative package."
             )?;
         }
+        FindingKind::Deprecated { .. } | FindingKind::License { .. } => {
+            writeln!(out, "#### Details\n")?;
+            writeln!(out, "{finding}")?;
+        }
     }
 
     Ok(())

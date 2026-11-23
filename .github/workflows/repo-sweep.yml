@@ -1,0 +1,31 @@
+name: Nightly repository sweep
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SWEEP_AGE_RECIPIENT: ${{ vars.SWEEP_AGE_RECIPIENT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --locked --bin depradar
+      - run: sudo apt-get update && sudo apt-get install -y age
+      - run: bash scripts/nightly-repo-sweep.sh target/debug/depradar .github/drips-wave-repos.txt repo-sweep.tar.age
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: encrypted-repository-sweep
+          path: repo-sweep.tar.age
+          if-no-files-found: error
+          retention-days: 14
