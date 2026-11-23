@@ -10,6 +10,21 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Dependency-confusion check for private package names — #332
+
+- **What:** `depradar.toml` accepts `private_packages = [...]`
+  (`ProjectConfig::private_packages`). The new `registry::confusion` module's
+  `find_public_names` queries the public npm registry for each name, encoding
+  scoped names the same way as `registry::npm`, and returns the names that
+  exist publicly. A `404` means unclaimed; any other failure is returned as an
+  error instead of being read as "not found".
+- **Tests:** mock-registry tests in `src/registry/confusion.rs` (a private name
+  that exists publicly is flagged, a scoped unclaimed name is not, and a `500`
+  is an error), plus a `private_packages` parse test in `src/config.rs`. Not
+  run yet.
+- **By:** cyfer-codes
+- **Closes:** #332
+
 ### Scanner — Report unpinned dependencies — #331
 
 - **What:** `Summary` gains an `unpinned` count of packages with no exact
