@@ -41,6 +41,10 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
+| [`bun.lock`](bun.lock) | `bun.lock` | `src/lockfile/bun.rs`, `tests/lockfile.rs` |
+| [`uv.lock`](uv.lock) | `uv.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`pdm.lock`](pdm.lock) | `pdm.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`Gemfile.lock`](Gemfile.lock) | `Gemfile.lock` | `src/lockfile/ruby.rs`, `tests/lockfile.rs` |
 | [`composer-basic/composer.lock`](composer-basic/composer.lock) | `composer.lock` | `src/lockfile/composer.rs` |
 | [`go-basic/go.sum`](go-basic/go.sum) | `go.sum` | `src/lockfile/go.rs` |
 | [`yarn-berry/yarn.lock`](yarn-berry/yarn.lock) | `yarn.lock` (Berry) | `src/lockfile/mod.rs`, `src/lockfile/yarn.rs` |

@@ -87,6 +87,74 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Closes:** #325
 - **Status:** In review.
 
+### scanner — Gemfile.lock parser — #322
+
+- **What:** Adds `parse_gemfile_lock` in [`ruby.rs`](src/lockfile/ruby.rs)
+  and registers `Gemfile.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `RubyGems`). Gems are read from the `specs:`
+  of the `GEM`, `GIT` and `PATH` sections (`name (version)`), with platform
+  suffixes such as `-x86_64-linux` dropped and each `(name, version)` pair
+  returned once. A gem is `direct` when it is listed under `DEPENDENCIES`;
+  `dev` is always `false` because the lockfile doesn't record groups.
+  Malformed input returns the new `ParseError::Invalid`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/Gemfile.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #322
+- **Status:** In review.
+
+### scanner — pdm.lock parser — #321
+
+- **What:** Adds `parse_pdm_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and
+  registers `pdm.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `PyPI`). Every `[[package]]` entry is read
+  with PEP 503 name normalization. `dev` is `true` when `groups` doesn't
+  include `default`. `pdm.lock` has no project entry, so a package is
+  `direct` when no other locked package lists it in `dependencies`.
+  Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/pdm.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #321
+- **Status:** In review.
+
+### scanner — uv.lock parser — #320
+
+- **What:** Adds `parse_uv_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and
+  registers `uv.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `PyPI`). Every `[[package]]` entry is read
+  with PEP 503 name normalization, except the project itself and workspace
+  members (`virtual` / `editable` sources). A package is `direct` when a
+  project package lists it in `dependencies`, `optional-dependencies` or
+  `dev-dependencies`, and `dev` when it is listed only in
+  `dev-dependencies`. Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/uv.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #320
+- **Status:** In review.
+
+### scanner — bun.lock parser — #319
+
+- **What:** Adds `parse_bun_lock` in [`bun.rs`](src/lockfile/bun.rs) and
+  registers `bun.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `Npm`). Trailing commas are stripped before
+  the file is read as JSON. Each `packages` entry's `name@version` is
+  returned; workspace, git and file entries are skipped. A package is
+  `direct` when its key is its bare name and the root workspace declares
+  it, and `dev` when the root lists it only in `devDependencies`.
+  Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/bun.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #319
+- **Status:** In review.
+- **Status:** In review.
+
 ### Frontend — Manual light/dark theme toggle — #135
 
 - **What:** A System / Light / Dark toggle in the header
