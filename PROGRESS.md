@@ -10,6 +10,21 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Report unpinned dependencies — #331
+
+- **What:** `Summary` gains an `unpinned` count of packages with no exact
+  version (such as `requests>=2`), which are never sent for a CVE lookup.
+  `Report::unpinned()` lists their names. The text output (`Report`'s
+  `Display` and `report::text`) adds an `Unpinned (N, ...)` section and
+  `N unpinned` to the summary line; the JSON report adds `summary.unpinned`
+  and an `unpinned` name list.
+- **Tests:** `counts_and_lists_unpinned_requirements` in
+  `tests/scan_lockfile.rs` and `scan_reports_unpinned_requirements_in_text_and_json`
+  in `tests/cli.rs`, over the new `tests/fixtures/pypi-unpinned/requirements.txt`
+  fixture (two unpinned lines). Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #331
+
 ### Frontend — Manual light/dark theme toggle — #135
 
 - **What:** A System / Light / Dark toggle in the header

@@ -40,6 +40,7 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`package-lock-v3.json`](package-lock-v3.json) | `package-lock.json` v3 | not referenced by a test yet |
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
+| [`pypi-unpinned/requirements.txt`](pypi-unpinned/requirements.txt) | `requirements.txt` (two unpinned lines) | `tests/scan_lockfile.rs`, `tests/cli.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
 | [`behavioral/leftpad-lite-v1/`](behavioral/leftpad-lite-v1) | unpacked npm package (clean) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-v2/`](behavioral/leftpad-lite-v2) | unpacked PyPI sdist (adds a malicious `setup.py`) | `src/behavioral/diff.rs` |

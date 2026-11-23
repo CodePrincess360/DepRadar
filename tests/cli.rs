@@ -113,6 +113,30 @@ fn scan_file_text_reports_findings() {
 }
 
 #[test]
+fn scan_reports_unpinned_requirements_in_text_and_json() {
+    let text = depradar()
+        .args(["scan", "--offline"])
+        .arg(fixture("pypi-unpinned/requirements.txt"))
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&text.stdout);
+    assert!(stdout.contains("2 unpinned"), "{stdout}");
+
+    let json = depradar()
+        .args(["--format", "json", "scan", "--offline"])
+        .arg(fixture("pypi-unpinned/requirements.txt"))
+        .output()
+        .unwrap();
+    let json = stdout_json(&json);
+    let lockfile = &json["lockfiles"][0];
+    assert_eq!(lockfile["summary"]["unpinned"], 2);
+    assert_eq!(
+        lockfile["unpinned"],
+        serde_json::json!(["requests", "flask"])
+    );
+}
+
+#[test]
 fn scan_error_in_json_mode_still_prints_one_document() {
     let output = depradar()
         .args([

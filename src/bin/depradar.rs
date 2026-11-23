@@ -703,10 +703,12 @@ fn report_json(report: &Report) -> Value {
             "vulnerabilities": summary.vulnerabilities,
             "suppressed": summary.suppressed,
             "warnings": summary.warnings,
+            "unpinned": summary.unpinned,
         },
         "findings": report.findings.iter().map(finding_json).collect::<Vec<_>>(),
         "suppressed": report.suppressed.iter().map(suppressed_json).collect::<Vec<_>>(),
         "warnings": report.warnings,
+        "unpinned": report.unpinned(),
     })
 }
 
