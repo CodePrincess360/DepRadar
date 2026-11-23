@@ -41,6 +41,7 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
+| [`composer-basic/composer.lock`](composer-basic/composer.lock) | `composer.lock` | `src/lockfile/composer.rs` |
 | [`go-basic/go.sum`](go-basic/go.sum) | `go.sum` | `src/lockfile/go.rs` |
 | [`yarn-berry/yarn.lock`](yarn-berry/yarn.lock) | `yarn.lock` (Berry) | `src/lockfile/mod.rs`, `src/lockfile/yarn.rs` |
 | [`gradle-basic/gradle.lockfile`](gradle-basic/gradle.lockfile) | `gradle.lockfile` | `src/lockfile/gradle.rs` |

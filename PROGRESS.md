@@ -10,6 +10,21 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — composer.lock parser — #323
+
+- **What:** Adds `parse_composer_lock` in [`composer.rs`](src/lockfile/composer.rs),
+  registered in `lockfile::detect` for `composer.lock` and dispatched from
+  `parse_file` and `parse_lockfile` with ecosystem `Packagist`. Entries in
+  `packages` and `packages-dev` are returned with their pinned versions, the
+  latter with `dev: true`; `direct` is `false` because the format doesn't
+  record it. Malformed JSON fails with `ParseError::Json`.
+- **Tests:** Unit tests over the new `tests/fixtures/composer-basic/composer.lock`
+  fixture (names, versions, `direct`/`dev` flags) and invalid input. Not run
+  in this change.
+- **By:** cyber-punk112
+- **Closes:** #323
+- **Status:** In review.
+
 ### scanner — go.sum parser — #324
 
 - **What:** Adds `parse_go_sum` in [`go.rs`](src/lockfile/go.rs), registered
