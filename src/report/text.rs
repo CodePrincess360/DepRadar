@@ -149,6 +149,18 @@ fn write_report(
         }
     }
 
+    let unpinned = report.unpinned();
+    if !unpinned.is_empty() {
+        writeln!(
+            out,
+            "\nUnpinned ({}, not checked for known vulnerabilities):",
+            unpinned.len()
+        )?;
+        for name in unpinned {
+            writeln!(out, "  - {name}")?;
+        }
+    }
+
     if verbose && !report.timings.is_empty() {
         writeln!(out, "\nTimings:")?;
         for timing in &report.timings {
@@ -164,11 +176,13 @@ fn write_report(
 /// The closing `Summary: ...` line.
 pub fn summary_line(report: &Report) -> String {
     format!(
-        "Summary: {} typosquat(s), {} vulnerability finding(s), {} suppressed, {} warning(s)",
+        "Summary: {} typosquat(s), {} vulnerability finding(s), {} suppressed, {} warning(s), \
+         {} unpinned",
         report.summary.typosquats,
         report.summary.vulnerabilities,
         report.summary.suppressed,
-        report.summary.warnings
+        report.summary.warnings,
+        report.summary.unpinned
     )
 }
 

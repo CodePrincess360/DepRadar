@@ -1,0 +1,27 @@
+name: RepoGuard repo-scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  repo-scan:
+    name: Run repo-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run RepoGuard repo-scan
+        uses: DepRadarOrg/DepRadar@main
+        with:
+          path: '.'
+          sarif-file: 'repo-scan.sarif'
+          upload-sarif: 'true'

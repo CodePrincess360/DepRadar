@@ -36,11 +36,21 @@ covered by the repository's [MIT license](../../LICENSE).
 | --- | --- | --- |
 | [`npm-basic/package-lock.json`](npm-basic/package-lock.json) | `package-lock.json` v3 | `tests/lockfile.rs`, `tests/scan_lockfile.rs` |
 | [`npm-chain/package-lock.json`](npm-chain/package-lock.json) | `package-lock.json` v3 | `tests/lockfile.rs`, `tests/scan_lockfile.rs` |
+| [`npm-shrinkwrap/npm-shrinkwrap.json`](npm-shrinkwrap/npm-shrinkwrap.json) | `npm-shrinkwrap.json` (lockfile v3) | `tests/cli.rs` |
 | [`package-lock-v1.json`](package-lock-v1.json) | `package-lock.json` v1 | not referenced by a test yet |
 | [`package-lock-v3.json`](package-lock-v3.json) | `package-lock.json` v3 | not referenced by a test yet |
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
+| [`pypi-unpinned/requirements.txt`](pypi-unpinned/requirements.txt) | `requirements.txt` (two unpinned lines) | `tests/scan_lockfile.rs`, `tests/cli.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
+| [`bun.lock`](bun.lock) | `bun.lock` | `src/lockfile/bun.rs`, `tests/lockfile.rs` |
+| [`uv.lock`](uv.lock) | `uv.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`pdm.lock`](pdm.lock) | `pdm.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`Gemfile.lock`](Gemfile.lock) | `Gemfile.lock` | `src/lockfile/ruby.rs`, `tests/lockfile.rs` |
+| [`composer-basic/composer.lock`](composer-basic/composer.lock) | `composer.lock` | `src/lockfile/composer.rs` |
+| [`go-basic/go.sum`](go-basic/go.sum) | `go.sum` | `src/lockfile/go.rs` |
+| [`yarn-berry/yarn.lock`](yarn-berry/yarn.lock) | `yarn.lock` (Berry) | `src/lockfile/mod.rs`, `src/lockfile/yarn.rs` |
+| [`gradle-basic/gradle.lockfile`](gradle-basic/gradle.lockfile) | `gradle.lockfile` | `src/lockfile/gradle.rs` |
 | [`behavioral/leftpad-lite-v1/`](behavioral/leftpad-lite-v1) | unpacked npm package (clean) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-v2/`](behavioral/leftpad-lite-v2) | unpacked PyPI sdist (adds a malicious `setup.py`) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-docs/`](behavioral/leftpad-lite-docs) | `leftpad-lite-v1` + `CHANGELOG.md` | `src/behavioral/diff.rs` |
