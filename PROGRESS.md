@@ -10,6 +10,23 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — bun.lock parser — #319
+
+- **What:** Adds `parse_bun_lock` in [`bun.rs`](src/lockfile/bun.rs) and
+  registers `bun.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `Npm`). Trailing commas are stripped before
+  the file is read as JSON. Each `packages` entry's `name@version` is
+  returned; workspace, git and file entries are skipped. A package is
+  `direct` when its key is its bare name and the root workspace declares
+  it, and `dev` when the root lists it only in `devDependencies`.
+  Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/bun.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #319
+- **Status:** In review.
+
 ### Frontend — Manual light/dark theme toggle — #135
 
 - **What:** A System / Light / Dark toggle in the header

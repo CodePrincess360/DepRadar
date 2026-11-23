@@ -104,3 +104,32 @@ fn npm_paths_follow_the_shortest_chain_and_node_resolution() {
         ]
     );
 }
+
+#[test]
+fn bun_lock_marks_root_workspace_dependencies_direct() {
+    let parsed = parse_lockfile(&fixture("bun.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::Npm);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("@types/node", Some("20.11.30"), true),
+            ("accepts", Some("1.3.8"), false),
+            ("debug", Some("2.6.9"), false),
+            // Nested `debug/ms` install, separate from the hoisted `ms`.
+            ("ms", Some("2.0.0"), false),
+            ("express", Some("4.21.2"), true),
+            ("ms", Some("2.1.3"), false),
+            ("typescript", Some("5.4.5"), true),
+        ]
+    );
+}
+
+#[test]
+fn malformed_bun_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("bun.lock");
+    std::fs::write(&path, "{ \"packages\": ").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}
