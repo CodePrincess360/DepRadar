@@ -1,6 +1,8 @@
-//! Yarn classic (v1) `yarn.lock` parser.
+//! Yarn `yarn.lock` parser: classic (v1) and Berry (v2+).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+
+use serde::Deserialize;
 
 use super::ParseError;
 use crate::model::{Dependency, Ecosystem};
@@ -13,7 +15,14 @@ use crate::model::{Dependency, Ecosystem};
 /// with several specifiers are supported; each `(name, version)` pair is
 /// returned once. `yarn.lock` doesn't record which packages the project
 /// declares itself, so `direct` and `dev` are always `false`.
+///
+/// A Berry lockfile, recognised by its top-level `__metadata` key, is
+/// parsed by `parse_berry_lock` instead.
 pub fn parse_yarn_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> {
+    if contents.lines().any(|line| line.starts_with("__metadata:")) {
+        return parse_berry_lock(contents);
+    }
+
     let mut seen = BTreeSet::new();
     let mut deps = Vec::new();
     let mut current: Option<String> = None;
@@ -39,6 +48,62 @@ pub fn parse_yarn_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> {
         }
     }
     Ok(deps)
+}
+
+/// The field of a Yarn Berry entry we read.
+#[derive(Debug, Deserialize)]
+struct BerryEntry {
+    /// The locked package, e.g. `@babel/core@npm:7.12.3`.
+    resolution: Option<String>,
+}
+
+/// Parses a Yarn Berry (v2+) `yarn.lock`, which is YAML.
+///
+/// Every top-level key other than `__metadata` is an entry whose
+/// `resolution` (`name@npm:1.2.3`) gives the package name and version. Only
+/// entries resolved from the npm registry are returned; the project's own
+/// `workspace:` entries and other protocols (`patch:`, `link:`, ...) are
+/// skipped. Each `(name, version)` pair is returned once, and `direct` and
+/// `dev` are always `false`, as for v1.
+fn parse_berry_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> {
+    let entries: BTreeMap<String, serde_yaml::Value> = serde_yaml::from_str(contents)?;
+    let mut seen = BTreeSet::new();
+    let mut deps = Vec::new();
+
+    for (key, value) in entries {
+        if key == "__metadata" {
+            continue;
+        }
+        let entry: BerryEntry = serde_yaml::from_value(value)?;
+        let Some(resolution) = entry.resolution else {
+            continue;
+        };
+        let Some((name, version)) = berry_resolution(&resolution) else {
+            continue;
+        };
+        if seen.insert((name.to_string(), version.to_string())) {
+            deps.push(Dependency {
+                name: name.to_string(),
+                version: Some(version.to_string()),
+                ecosystem: Ecosystem::Npm,
+                direct: false,
+                dev: false,
+                path: Vec::new(),
+            });
+        }
+    }
+    Ok(deps)
+}
+
+/// Splits a Berry resolution such as `@babel/core@npm:7.12.3` into the
+/// package name and its npm version. Returns `None` for other protocols.
+fn berry_resolution(resolution: &str) -> Option<(&str, &str)> {
+    // The name/protocol separator is the first `@` after position 0, which
+    // keeps the leading `@` of a scope.
+    let at = resolution.get(1..)?.find('@')? + 1;
+    let name = &resolution[..at];
+    let version = resolution[at + 1..].strip_prefix("npm:")?;
+    (!version.is_empty()).then_some((name, version))
 }
 
 /// Extracts the package name from an entry header such as
@@ -68,6 +133,7 @@ mod tests {
     use super::*;
 
     const YARN_LOCK: &str = include_str!("../../tests/fixtures/yarn.lock");
+    const YARN_BERRY_LOCK: &str = include_str!("../../tests/fixtures/yarn-berry/yarn.lock");
 
     fn find<'a>(deps: &'a [Dependency], name: &str) -> &'a Dependency {
         deps.iter()
@@ -95,6 +161,46 @@ mod tests {
         assert_eq!(find(&deps, "lodash").version.as_deref(), Some("4.17.21"));
         // Exact-version specifier.
         assert_eq!(find(&deps, "left-pad").version.as_deref(), Some("1.3.0"));
+    }
+
+    #[test]
+    fn parses_berry_lockfile() {
+        let deps = parse_yarn_lock(YARN_BERRY_LOCK).unwrap();
+        assert_eq!(deps.len(), 4);
+        assert!(deps.iter().all(|d| d.ecosystem == Ecosystem::Npm));
+        assert!(deps.iter().all(|d| !d.direct && !d.dev));
+
+        assert_eq!(
+            find(&deps, "@babel/code-frame").version.as_deref(),
+            Some("7.12.13")
+        );
+        assert_eq!(
+            find(&deps, "@babel/highlight").version.as_deref(),
+            Some("7.13.10")
+        );
+        assert_eq!(find(&deps, "lodash").version.as_deref(), Some("4.17.21"));
+        assert_eq!(find(&deps, "left-pad").version.as_deref(), Some("1.3.0"));
+        // The project's own workspace entry is skipped.
+        assert!(!deps.iter().any(|d| d.name == "my-app"));
+    }
+
+    #[test]
+    fn berry_resolution_reads_npm_entries_only() {
+        assert_eq!(
+            berry_resolution("@babel/core@npm:7.12.3"),
+            Some(("@babel/core", "7.12.3"))
+        );
+        assert_eq!(berry_resolution("my-app@workspace:."), None);
+        assert_eq!(
+            berry_resolution("resolve@patch:resolve@npm%3A1.20.0#~builtin<compat/resolve>"),
+            None
+        );
+    }
+
+    #[test]
+    fn invalid_berry_lockfile_is_an_error() {
+        let lockfile = "__metadata:\n  version: 8\nfoo: [\n";
+        assert!(parse_yarn_lock(lockfile).is_err());
     }
 
     #[test]

@@ -1,0 +1,39 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "bun-fixture",
+      "dependencies": {
+        "express": "^4.21.2",
+        "local-lib": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^20.11.0",
+        "typescript": "^5.4.0",
+      },
+    },
+    "packages/local-lib": {
+      "name": "local-lib",
+      "dependencies": {
+        "ms": "^2.1.3",
+      },
+    },
+  },
+  "packages": {
+    "@types/node": ["@types/node@20.11.30", "", { "dependencies": {} }, "sha512-dGVzdG5vZGU="],
+
+    "accepts": ["accepts@1.3.8", "", {}, "sha512-YWNjZXB0cw=="],
+
+    "debug": ["debug@2.6.9", "", { "dependencies": { "ms": "2.0.0" } }, "sha512-ZGVidWc="],
+
+    "debug/ms": ["ms@2.0.0", "", {}, "sha512-bXMyMDA="],
+
+    "express": ["express@4.21.2", "", { "dependencies": { "accepts": "~1.3.8", "debug": "2.6.9" } }, "sha512-ZXhwcmVzcw=="],
+
+    "local-lib": ["local-lib@workspace:packages/local-lib"],
+
+    "ms": ["ms@2.1.3", "", {}, "sha512-bXMyMTM="],
+
+    "typescript": ["typescript@5.4.5", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-dHlwZXNjcmlwdA=="],
+  }
+}

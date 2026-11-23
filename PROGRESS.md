@@ -10,12 +10,209 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Detect `npm-shrinkwrap.json` — #328
+
+- **What:** `lockfile::detect` maps `npm-shrinkwrap.json` to
+  `LockfileKind::PackageLock`, since it uses the `package-lock.json` format,
+  so it is recognised everywhere `detect` is used.
+- **Tests:** a `npm-shrinkwrap.json` case in `detects_every_supported_file_name`
+  (`src/lockfile/mod.rs`), and `scan_dir_scans_npm_shrinkwrap` in
+  `tests/cli.rs`, which runs `depradar scan` over the new
+  `tests/fixtures/npm-shrinkwrap/` fixture and expects its typosquat. Not run
+  yet.
+- **By:** cyfer-codes
+- **Closes:** #328
+
+### Typosquat — RubyGems popular-package dataset — #334
+
+- **What:** `data/popular-packages/rubygems-top1000.json` holds the 1000
+  most-downloaded gems, ranked by rubygems.org total download counts via the
+  BestGems ranking (rubygems.org's own stats page stops at 100).
+  `scripts/update-datasets.py rubygems` regenerates it, and
+  `typosquat::dataset` loads it alongside the npm, PyPI and crates.io lists,
+  so RubyGems names are scored and ranked like the others. The dataset
+  README documents the source.
+- **Tests:** the dataset validation test now covers the RubyGems file (unique,
+  trimmed, lowercase, valid gem names); the loader test checks `rails` and
+  `nokogiri`; `rubygems_typosquat_is_flagged` in `src/typosquat/scanner.rs`
+  flags `nokogri` as one edit from `nokogiri`. Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #334
+
+### Scanner — Dependency-confusion check for private package names — #332
+
+- **What:** `depradar.toml` accepts `private_packages = [...]`
+  (`ProjectConfig::private_packages`). The new `registry::confusion` module's
+  `find_public_names` queries the public npm registry for each name, encoding
+  scoped names the same way as `registry::npm`, and returns the names that
+  exist publicly. A `404` means unclaimed; any other failure is returned as an
+  error instead of being read as "not found".
+- **Tests:** mock-registry tests in `src/registry/confusion.rs` (a private name
+  that exists publicly is flagged, a scoped unclaimed name is not, and a `500`
+  is an error), plus a `private_packages` parse test in `src/config.rs`. Not
+  run yet.
+- **By:** cyfer-codes
+- **Closes:** #332
+
+### Scanner — Report unpinned dependencies — #331
+
+- **What:** `Summary` gains an `unpinned` count of packages with no exact
+  version (such as `requests>=2`), which are never sent for a CVE lookup.
+  `Report::unpinned()` lists their names. The text output (`Report`'s
+  `Display` and `report::text`) adds an `Unpinned (N, ...)` section and
+  `N unpinned` to the summary line; the JSON report adds `summary.unpinned`
+  and an `unpinned` name list.
+- **Tests:** `counts_and_lists_unpinned_requirements` in
+  `tests/scan_lockfile.rs` and `scan_reports_unpinned_requirements_in_text_and_json`
+  in `tests/cli.rs`, over the new `tests/fixtures/pypi-unpinned/requirements.txt`
+  fixture (two unpinned lines). Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #331
+
+### Docs — Contract error codes reference — #449
+
+- **What:** Adds [`docs/contract-errors.md`](docs/contract-errors.md) mapping every Soroban contract error code from `contracts/deprader_router/src/lib.rs` to its enum variant, triggering methods, failure conditions, and remediation guidance.
+- **Verified:** Every error code, variant name, and condition cross-referenced against `contracts/deprader_router/src/lib.rs`.
+- **By:** genda-benjamin
+- **Closes:** #449
+
 ### Docs — Module README for `src/behavioral/` — #454
 
 - **What:** Adds [`src/behavioral/README.md`](src/behavioral/README.md) documenting each behavioral detector (`scripts`, `network`, `setup_py`, `binaries`, `obfuscation`, `diff`, `tarball`), detailing its analyzed files, heuristic weights/signals, and severity levels consistent with `docs/severity.md`.
 - **Verified:** Every detector description, heuristic weight, constant, and link was verified against `src/behavioral/*.rs` and `docs/severity.md`.
 - **By:** genda-benjamin
 - **Closes:** #454
+
+### scanner — composer.lock parser — #323
+
+- **What:** Adds `parse_composer_lock` in [`composer.rs`](src/lockfile/composer.rs),
+  registered in `lockfile::detect` for `composer.lock` and dispatched from
+  `parse_file` and `parse_lockfile` with ecosystem `Packagist`. Entries in
+  `packages` and `packages-dev` are returned with their pinned versions, the
+  latter with `dev: true`; `direct` is `false` because the format doesn't
+  record it. Malformed JSON fails with `ParseError::Json`.
+- **Tests:** Unit tests over the new `tests/fixtures/composer-basic/composer.lock`
+  fixture (names, versions, `direct`/`dev` flags) and invalid input. Not run
+  in this change.
+- **By:** cyber-punk112
+- **Closes:** #323
+- **Status:** In review.
+
+### scanner — go.sum parser — #324
+
+- **What:** Adds `parse_go_sum` in [`go.rs`](src/lockfile/go.rs), registered
+  in `lockfile::detect` for `go.sum` and dispatched from `parse_file` and
+  `parse_lockfile` with ecosystem `Go`. Each `module version hash` line with a
+  plain version becomes a dependency (each pair once); `version/go.mod` lines,
+  which only checksum a module's `go.mod`, are skipped. `direct` and `dev` are
+  `false` because the format doesn't record them. Lines with any other shape
+  fail with `ParseError::Malformed`.
+- **Tests:** Unit tests over the new `tests/fixtures/go-basic/go.sum` fixture
+  (names, versions, `direct`/`dev` flags) and malformed lines. Not run in this
+  change.
+- **By:** cyber-punk112
+- **Closes:** #324
+- **Status:** In review.
+
+### scanner — Yarn Berry (v2+) yarn.lock parser — #326
+
+- **What:** `parse_yarn_lock` in [`yarn.rs`](src/lockfile/yarn.rs) now
+  recognises a Berry lockfile by its top-level `__metadata` key and parses it
+  as YAML. Each entry's `resolution` (`name@npm:1.2.3`) gives the package name
+  and version, including scoped names; `workspace:` entries and other
+  protocols (`patch:`, `link:`, ...) are skipped. v1 lockfiles are parsed as
+  before, and both go through `yarn.lock` detection.
+- **Tests:** Unit tests over the new `tests/fixtures/yarn-berry/yarn.lock`
+  fixture, and a `parse_file` test over the v1 and Berry fixtures. Not run in
+  this change.
+- **By:** cyber-punk112
+- **Closes:** #326
+- **Status:** In review.
+
+### scanner — gradle.lockfile parser — #325
+
+- **What:** Adds `parse_gradle_lockfile` in [`gradle.rs`](src/lockfile/gradle.rs),
+  registered in `lockfile::detect` for `gradle.lockfile` and dispatched from
+  `parse_file` and `parse_lockfile` with ecosystem `Maven`. Each
+  `group:artifact:version=configurations` line becomes a `group:artifact`
+  dependency; comments and the `empty=` line are skipped. `dev` is set when
+  every configuration is a test one; `direct` is `false` because the format
+  doesn't record it. Lines with any other shape fail with the new
+  `ParseError::Malformed`.
+- **Tests:** Unit tests over the new `tests/fixtures/gradle-basic/gradle.lockfile`
+  fixture (names, versions, `direct`/`dev` flags) and malformed lines. Not run
+  in this change.
+- **By:** cyber-punk112
+- **Closes:** #325
+- **Status:** In review.
+
+### scanner — Gemfile.lock parser — #322
+
+- **What:** Adds `parse_gemfile_lock` in [`ruby.rs`](src/lockfile/ruby.rs)
+  and registers `Gemfile.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `RubyGems`). Gems are read from the `specs:`
+  of the `GEM`, `GIT` and `PATH` sections (`name (version)`), with platform
+  suffixes such as `-x86_64-linux` dropped and each `(name, version)` pair
+  returned once. A gem is `direct` when it is listed under `DEPENDENCIES`;
+  `dev` is always `false` because the lockfile doesn't record groups.
+  Malformed input returns the new `ParseError::Invalid`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/Gemfile.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #322
+- **Status:** In review.
+
+### scanner — pdm.lock parser — #321
+
+- **What:** Adds `parse_pdm_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and
+  registers `pdm.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `PyPI`). Every `[[package]]` entry is read
+  with PEP 503 name normalization. `dev` is `true` when `groups` doesn't
+  include `default`. `pdm.lock` has no project entry, so a package is
+  `direct` when no other locked package lists it in `dependencies`.
+  Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/pdm.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #321
+- **Status:** In review.
+
+### scanner — uv.lock parser — #320
+
+- **What:** Adds `parse_uv_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and
+  registers `uv.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `PyPI`). Every `[[package]]` entry is read
+  with PEP 503 name normalization, except the project itself and workspace
+  members (`virtual` / `editable` sources). A package is `direct` when a
+  project package lists it in `dependencies`, `optional-dependencies` or
+  `dev-dependencies`, and `dev` when it is listed only in
+  `dev-dependencies`. Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/uv.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #320
+- **Status:** In review.
+
+### scanner — bun.lock parser — #319
+
+- **What:** Adds `parse_bun_lock` in [`bun.rs`](src/lockfile/bun.rs) and
+  registers `bun.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `Npm`). Trailing commas are stripped before
+  the file is read as JSON. Each `packages` entry's `name@version` is
+  returned; workspace, git and file entries are skipped. A package is
+  `direct` when its key is its bare name and the root workspace declares
+  it, and `dev` when the root lists it only in `devDependencies`.
+  Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/bun.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #319
+- **Status:** In review.
+- **Status:** In review.
 
 ### Frontend — Manual light/dark theme toggle — #135
 

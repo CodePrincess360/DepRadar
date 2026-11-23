@@ -106,6 +106,9 @@ pub struct Summary {
     /// `typosquats` / `vulnerabilities` / `deprecated` / `license`.
     pub suppressed: usize,
     pub warnings: usize,
+    /// Packages with no exact version (such as `requests>=2`), which can't
+    /// be checked against the advisory source.
+    pub unpinned: usize,
 }
 
 /// How long one stage of a scan took.
@@ -142,6 +145,15 @@ impl Report {
     /// True if any unsuppressed finding was reported.
     pub fn has_findings(&self) -> bool {
         !self.findings.is_empty()
+    }
+
+    /// Names of the packages with no exact version, in lockfile order.
+    pub fn unpinned(&self) -> Vec<&str> {
+        self.dependencies
+            .iter()
+            .filter(|dependency| dependency.version.is_none())
+            .map(|dependency| dependency.name.as_str())
+            .collect()
     }
 }
 
@@ -182,16 +194,29 @@ impl fmt::Display for Report {
             }
         }
 
+        let unpinned = self.unpinned();
+        if !unpinned.is_empty() {
+            writeln!(
+                f,
+                "\nUnpinned ({}, not checked for known vulnerabilities):",
+                unpinned.len()
+            )?;
+            for name in unpinned {
+                writeln!(f, "  - {name}")?;
+            }
+        }
+
         write!(
             f,
             "\nSummary: {} typosquat(s), {} vulnerability finding(s), {} deprecated, \
-             {} license issue(s), {} suppressed, {} warning(s)",
+             {} license issue(s), {} suppressed, {} warning(s), {} unpinned",
             self.summary.typosquats,
             self.summary.vulnerabilities,
             self.summary.deprecated,
             self.summary.license,
             self.summary.suppressed,
-            self.summary.warnings
+            self.summary.warnings,
+            self.summary.unpinned
         )
     }
 }
@@ -379,6 +404,10 @@ pub fn scan_lockfile(path: impl AsRef<Path>, opts: &ScanOptions<'_>) -> Result<R
         license: count(|kind| matches!(kind, FindingKind::License { .. })),
         suppressed: suppressed.len(),
         warnings: warnings.len(),
+        unpinned: packages
+            .iter()
+            .filter(|dependency| dependency.version.is_none())
+            .count(),
     };
 
     Ok(Report {

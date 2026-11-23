@@ -367,5 +367,11 @@ DepRadar is released under the [MIT License](LICENSE).
 <!-- handsoff-issue-302 -->
 - #302: [repo-scan] Day 14: `repo-scan --baseline`
 
+<!-- handsoff-issue-304 -->
+- #304: [repo-scan] Day 16: PR mode: scan only what a PR changes
+
+<!-- handsoff-issue-305 -->
+- #305: [repo-scan] Day 17: `--harden` suggestions
+
 <!-- handsoff-issue-316 -->
 - #316: [repo-scan] Day 28: Fast scanning for large monorepos

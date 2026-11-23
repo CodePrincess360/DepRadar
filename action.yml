@@ -1,0 +1,55 @@
+name: 'RepoGuard repo-scan'
+description: 'Scan a repository with repo-scan and upload SARIF results to the GitHub Security tab'
+author: 'DepRadarOrg'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to the repository or directory to scan'
+    required: false
+    default: '.'
+  sarif-file:
+    description: 'Path where the SARIF report will be written'
+    required: false
+    default: 'repo-scan.sarif'
+  upload-sarif:
+    description: 'Whether to upload the SARIF report to the GitHub Security tab'
+    required: false
+    default: 'true'
+  fail-on-findings:
+    description: 'Fail the job when repo-scan reports findings'
+    required: false
+    default: 'false'
+
+outputs:
+  sarif-file:
+    description: 'Path to the generated SARIF report'
+    value: ${{ steps.scan.outputs.sarif-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run repo-scan
+      id: scan
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
+        INPUT_FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        set -euo pipefail
+        args=(--format sarif --output "$INPUT_SARIF_FILE")
+        if [ "$INPUT_FAIL_ON_FINDINGS" = "true" ]; then
+          args+=(--fail-on-findings)
+        fi
+        repo-scan "$INPUT_PATH" "${args[@]}"
+        echo "sarif-file=$INPUT_SARIF_FILE" >> "$GITHUB_OUTPUT"
+
+    - name: Upload SARIF to Security tab
+      if: ${{ inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif-file }}

@@ -104,3 +104,113 @@ fn npm_paths_follow_the_shortest_chain_and_node_resolution() {
         ]
     );
 }
+
+#[test]
+fn bun_lock_marks_root_workspace_dependencies_direct() {
+    let parsed = parse_lockfile(&fixture("bun.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::Npm);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("@types/node", Some("20.11.30"), true),
+            ("accepts", Some("1.3.8"), false),
+            ("debug", Some("2.6.9"), false),
+            // Nested `debug/ms` install, separate from the hoisted `ms`.
+            ("ms", Some("2.0.0"), false),
+            ("express", Some("4.21.2"), true),
+            ("ms", Some("2.1.3"), false),
+            ("typescript", Some("5.4.5"), true),
+        ]
+    );
+}
+
+#[test]
+fn malformed_bun_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("bun.lock");
+    std::fs::write(&path, "{ \"packages\": ").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}
+
+#[test]
+fn uv_lock_marks_project_dependencies_direct() {
+    let parsed = parse_lockfile(&fixture("uv.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::PyPI);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("certifi", Some("2024.8.30"), false),
+            ("iniconfig", Some("2.0.0"), false),
+            ("pytest", Some("8.3.3"), true),
+            ("requests", Some("2.32.3"), true),
+            ("typing-extensions", Some("4.12.2"), true),
+        ]
+    );
+}
+
+#[test]
+fn malformed_uv_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("uv.lock");
+    std::fs::write(&path, "[[package]\nname = ").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}
+
+#[test]
+fn pdm_lock_marks_packages_nothing_else_requires_as_direct() {
+    let parsed = parse_lockfile(&fixture("pdm.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::PyPI);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("certifi", Some("2024.8.30"), false),
+            ("iniconfig", Some("2.0.0"), false),
+            ("pytest", Some("8.3.3"), true),
+            ("requests", Some("2.32.3"), true),
+            ("tomli", Some("2.0.2"), false),
+        ]
+    );
+}
+
+#[test]
+fn malformed_pdm_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pdm.lock");
+    std::fs::write(&path, "[[package]\nname = ").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}
+
+#[test]
+fn gemfile_lock_marks_declared_gems_direct() {
+    let parsed = parse_lockfile(&fixture("Gemfile.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::RubyGems);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("my_engine", Some("0.2.0"), true),
+            ("local_gem", Some("0.1.0"), true),
+            // Two platform variants of the same version, returned once.
+            ("nokogiri", Some("1.16.2"), true),
+            ("racc", Some("1.7.3"), false),
+            ("rack", Some("3.0.9"), false),
+            ("rails", Some("7.1.3"), true),
+            ("rake", Some("13.1.0"), true),
+        ]
+    );
+}
+
+#[test]
+fn malformed_gemfile_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Gemfile.lock");
+    std::fs::write(&path, "GEM\n  specs:\n    rack-3.0.9\n").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}
