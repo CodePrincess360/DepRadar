@@ -1726,6 +1726,75 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Closes:** #154
 - **Status:** In review.
 
+### CVE — Flag vulnerabilities in CISA's Known Exploited Vulnerabilities list — #346
+
+- **What:** Adds `src/cve/kev.rs`, which downloads CISA's KEV JSON feed
+  (`https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`)
+  and caches it on disk next to the OSV cache, refreshing it once the cached
+  copy is older than a day. The feed's `cveID` values are collected into a
+  set, and each finding's CVE aliases are checked against it; a match sets
+  `known_exploited: true` on the finding. The flag is shown in the text
+  report, in the JSON report (`known_exploited`) and in the SARIF result
+  properties.
+- **Tests:** A small KEV fixture (two CVEs) is served by a mock server, and
+  a test asserts that the finding whose alias is in the feed is marked
+  `known_exploited` while a finding with an unrelated CVE is not. A JSON
+  output test checks the field appears in the report.
+- **Verified:** `cargo fmt`, `cargo clippy -- -D warnings` and
+  `cargo test --workspace` pass.
+- **Closes:** #346
+- **Status:** In review.
+
+### CVE — Add EPSS exploit-probability scores to findings — #347
+
+- **What:** Adds `src/cve/epss.rs`, which queries the FIRST EPSS API
+  (`https://api.first.org/data/v1/epss?cve=…`) for a finding's CVE aliases
+  and stores the highest returned score on the finding as `epss_score`.
+  Responses are cached with the OSV cache, keyed by the CVE ID, so repeated
+  scans don't re-query the API. The score is printed in the text report,
+  added to the JSON report (`epss_score`) and included in the SARIF result
+  properties.
+- **Tests:** A mock-server test serves a fixed EPSS response and asserts the
+  score appears in the JSON output for the matching finding.
+- **Verified:** `cargo fmt`, `cargo clippy -- -D warnings` and
+  `cargo test --workspace` pass.
+- **Closes:** #347
+- **Status:** In review.
+
+### CLI — `depradar cache info` and `depradar cache clear` — #349
+
+- **What:** Adds a `cache` subcommand to [`src/bin/depradar.rs`](src/bin/depradar.rs).
+  `depradar cache info` prints the OSV cache directory path, the number of
+  cached entries and their total size; `depradar cache clear` deletes the
+  cache directory. Both use the path helpers in
+  [`src/cve/cache.rs`](src/cve/cache.rs), and the cache directory can be
+  overridden (e.g. for tests) so the real OS cache is never touched.
+- **Tests:** `assert_cmd` CLI tests in [`tests/cli.rs`](tests/cli.rs) run
+  both commands against a temporary cache directory: `cache info` reports
+  the path and entry count, and `cache clear` removes the directory.
+- **Verified:** `cargo fmt`, `cargo clippy -- -D warnings` and
+  `cargo test --workspace` pass.
+- **Closes:** #349
+- **Status:** In review.
+
+### CVE — PEP 440 version comparison for PyPI fixed versions — #350
+
+- **What:** Adds PEP 440 ordering to [`src/cve/remediation.rs`](src/cve/remediation.rs)
+  so PyPI fixed-version suggestions compare versions correctly instead of as
+  semver. The comparison handles epochs (`1!2.0`), pre-releases
+  (`2.0rc1`, `2.0a1`, `2.0b2`), post-releases (`1.0.post1`) and dev releases,
+  and normalises the common spellings (`rc`, `c`, `pre`, `preview`, `-`/`_`
+  separators). PyPI remediation uses this ordering; other ecosystems keep
+  semver.
+- **Tests:** Unit tests cover pre-release ordering (`2.0rc1 < 2.0`), post-release
+  ordering (`1.0 < 1.0.post1`) and epoch ordering (`1!1.0 > 2.0`), plus the
+  fixed-version suggestion picking the lowest fixed version above the
+  installed one.
+- **Verified:** `cargo fmt`, `cargo clippy -- -D warnings` and
+  `cargo test --workspace` pass.
+- **Closes:** #350
+- **Status:** In review.
+
 - #310 — Scan checked-out repositories without executing their contents and encrypt nightly ecosystem reports for the disclosure team (@willy-de7)
 - #311 — Render and serve clean, findings, or stale README badges from repository scan reports (@willy-de7)
 - #312 — Open testnet bounties from confirmed findings and persist the SHA-256 report proof on the router (@willy-de7)

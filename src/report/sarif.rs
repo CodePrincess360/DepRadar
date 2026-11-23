@@ -11,7 +11,7 @@
 //! Upload the file with
 //! [`github/codeql-action/upload-sarif`](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github).
 
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use super::{label, severity_of, AdvisorySeverities, Severity};
 use crate::model::{Finding, FindingKind};
@@ -162,6 +162,30 @@ fn result(
         finding.version.as_deref().unwrap_or("")
     );
 
+    let mut properties = Map::new();
+    properties.insert("package".into(), json!(finding.package));
+    properties.insert("version".into(), json!(finding.version));
+    properties.insert("ecosystem".into(), json!(finding.ecosystem.as_osv_str()));
+    properties.insert("direct".into(), json!(finding.direct));
+    properties.insert("severity".into(), json!(label(severity)));
+    properties.insert(
+        "security-severity".into(),
+        json!(security_severity(severity)),
+    );
+    if let FindingKind::Vulnerability {
+        known_exploited,
+        epss_score,
+        ..
+    } = &finding.kind
+    {
+        if let Some(known_exploited) = known_exploited {
+            properties.insert("known_exploited".into(), json!(known_exploited));
+        }
+        if let Some(epss_score) = epss_score {
+            properties.insert("epss_score".into(), json!(epss_score));
+        }
+    }
+
     json!({
         "ruleId": RULES[index].id,
         "ruleIndex": index,
@@ -174,14 +198,7 @@ fn result(
             },
         }],
         "partialFingerprints": { "depradar/v1": fingerprint },
-        "properties": {
-            "package": finding.package,
-            "version": finding.version,
-            "ecosystem": finding.ecosystem.as_osv_str(),
-            "direct": finding.direct,
-            "severity": label(severity),
-            "security-severity": security_severity(severity),
-        },
+        "properties": Value::Object(properties),
     })
 }
 
@@ -232,5 +249,42 @@ mod tests {
         assert_eq!(level(Severity::High), "error");
         assert_eq!(level(Severity::Medium), "warning");
         assert_eq!(level(Severity::Low), "note");
+    }
+
+    #[test]
+    fn emits_known_exploited_and_epss_properties() {
+        use crate::model::{Ecosystem, Finding};
+
+        let finding = Finding {
+            kind: FindingKind::Vulnerability {
+                advisory_id: "GHSA-xxxx".into(),
+                known_exploited: Some(true),
+                epss_score: Some(0.42),
+            },
+            ecosystem: Ecosystem::Npm,
+            package: "left-pad".into(),
+            version: Some("1.0.0".into()),
+            direct: true,
+        };
+        let advisories = AdvisorySeverities::default();
+        let value = result(&finding, &advisories, "package-lock.json", None);
+        let properties = &value["properties"];
+        assert_eq!(properties["known_exploited"], json!(true));
+        assert_eq!(properties["epss_score"], json!(0.42));
+
+        let plain = Finding {
+            kind: FindingKind::Vulnerability {
+                advisory_id: "GHSA-yyyy".into(),
+                known_exploited: None,
+                epss_score: None,
+            },
+            ecosystem: Ecosystem::Npm,
+            package: "left-pad".into(),
+            version: Some("1.0.0".into()),
+            direct: true,
+        };
+        let value = result(&plain, &advisories, "package-lock.json", None);
+        assert!(value["properties"].get("known_exploited").is_none());
+        assert!(value["properties"].get("epss_score").is_none());
     }
 }
