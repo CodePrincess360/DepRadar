@@ -99,6 +99,16 @@ jobs:
             ./target/debug/depradar --fail-on critical scan "$lockfile"
           done
 
+  repo-sweep-smoke:
+    name: encrypted repository sweep smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --locked --bin depradar
+      - run: sudo apt-get update && sudo apt-get install -y age
+      - run: bash tests/nightly_repo_sweep.sh
+
   client:
     name: client (typecheck, test)
     runs-on: ubuntu-latest
@@ -162,7 +172,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Run smoke test against testnet
-        run: npm run test:e2e
+        run: npm run e2e
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

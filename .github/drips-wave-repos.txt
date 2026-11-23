@@ -1,0 +1,2 @@
+# Repositories to include in the DepRadar Drips Wave sweep.
+DepRadarOrg/DepRadar
