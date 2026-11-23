@@ -4,6 +4,7 @@ import { formatAmount, formatDate, tokenSymbol } from "../lib/format";
 import { cancelWindow, type CancelWindow } from "../lib/cancel";
 import type { Bounty } from "../lib/types";
 import { useAsync } from "../lib/useAsync";
+import { useNow } from "../lib/useNow";
 import { useWallet } from "../lib/useWallet";
 
 /**
@@ -13,6 +14,8 @@ import { useWallet } from "../lib/useWallet";
 export function CreatorCancel({ bounty, onAction }: { bounty: Bounty; onAction: (txHash: string) => void }) {
   const wallet = useWallet();
   const paused = useAsync(isPaused, "paused");
+
+  const now = useNow();
 
   if (bounty.status !== "Open") return null;
 
@@ -30,7 +33,7 @@ export function CreatorCancel({ bounty, onAction }: { bounty: Bounty; onAction: 
   if (wallet.address !== bounty.creator) return null;
   if (paused.status === "loading") return null;
 
-  const cw = cancelWindow(bounty, Date.now() / 1000, paused.status === "success" && paused.data);
+  const cw = cancelWindow(bounty, now, paused.status === "success" && paused.data);
   return <CreatorCancelAction bounty={bounty} creator={wallet.address} cw={cw} onAction={onAction} />;
 }
 

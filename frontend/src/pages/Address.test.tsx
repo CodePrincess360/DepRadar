@@ -74,7 +74,7 @@ describe("Address page", () => {
   });
 
   it("shows empty states for an address with no activity", async () => {
-    renderAt(`/address/${OTHER}`);
+    renderAt("/address/GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
     await screen.findByText("No claims submitted by this address.");
     expect(screen.getByText("No bounties funded by this address.")).toBeInTheDocument();
   });

@@ -10,8 +10,7 @@ use std::fmt;
 
 use serde_json::Value;
 
-use crate::cve::severity::Severity;
-use crate::model::{Finding, FindingKind};
+use crate::model::{Ecosystem, Finding, FindingKind};
 
 /// Default set of common permissive licenses that are considered acceptable.
 pub const DEFAULT_ALLOWED_LICENSES: &[&str] = &[
@@ -82,15 +81,17 @@ impl LicensePolicy {
         if self.is_allowed(license) {
             return None;
         }
+        let mut allowed: Vec<_> = self.allowed.iter().cloned().collect();
+        allowed.sort_unstable();
         Some(Finding {
             package: package.to_string(),
             version: None,
-            ecosystem: None,
+            ecosystem: Ecosystem::Npm,
             direct: false,
             path: Vec::new(),
             kind: FindingKind::License {
                 license: license.to_string(),
-                allowed: false,
+                allowed,
             },
         })
     }
@@ -233,10 +234,7 @@ impl CratesIoLicenseSource {
 
 impl LicenseSource for CratesIoLicenseSource {
     fn fetch_license(&self, _package: &str) -> Result<Option<String>, LicenseError> {
-        let crate_obj = self
-            .response
-            .get("crate")
-            .unwrap_or(&self.response);
+        let crate_obj = self.response.get("crate").unwrap_or(&self.response);
         match crate_obj.get("license") {
             Some(Value::String(s)) => {
                 let trimmed = s.trim();
@@ -305,7 +303,7 @@ mod tests {
         match &finding.kind {
             FindingKind::License { license, allowed } => {
                 assert_eq!(license, "GPL-3.0");
-                assert!(!allowed);
+                assert!(!allowed.contains(&normalize(&license)));
             }
             other => panic!("unexpected finding kind: {other:?}"),
         }
@@ -338,7 +336,7 @@ mod tests {
         match &finding.kind {
             FindingKind::License { license, allowed } => {
                 assert_eq!(license, "GPL-3.0");
-                assert!(!allowed);
+                assert!(!allowed.contains(&normalize(&license)));
             }
             other => panic!("unexpected finding kind: {other:?}"),
         }
@@ -348,7 +346,10 @@ mod tests {
     fn npm_legacy_object_license() {
         let response = json!({ "name": "old-pkg", "license": { "type": "MIT" } });
         let source = NpmLicenseSource::from_response(response);
-        assert_eq!(source.fetch_license("old-pkg").unwrap().as_deref(), Some("MIT"));
+        assert_eq!(
+            source.fetch_license("old-pkg").unwrap().as_deref(),
+            Some("MIT")
+        );
     }
 
     #[test]
@@ -381,7 +382,7 @@ mod tests {
         match &finding.kind {
             FindingKind::License { license, allowed } => {
                 assert_eq!(license, "GPL-3.0");
-                assert!(!allowed);
+                assert!(!allowed.contains(&normalize(&license)));
             }
             other => panic!("unexpected finding kind: {other:?}"),
         }
@@ -452,7 +453,7 @@ mod tests {
         match &finding.kind {
             FindingKind::License { license, allowed } => {
                 assert_eq!(license, "GPL-3.0");
-                assert!(!allowed);
+                assert!(!allowed.contains(&normalize(&license)));
             }
             other => panic!("unexpected finding kind: {other:?}"),
         }

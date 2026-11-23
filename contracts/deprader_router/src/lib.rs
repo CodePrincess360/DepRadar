@@ -126,6 +126,7 @@ enum DataKey {
     PendingAdmin,
     NextBountyId,
     Bounty(u64),
+    BountyProof(u64),
     Claim(u64, u32),
     ClaimBy(u64, Address),
     /// Per-claimant index of `(bounty_id, claim_id)` pairs, in submission
@@ -393,18 +394,10 @@ impl DepRaderRouter {
         }
 
         let balance_key = DataKey::PoolBalance(token.clone());
-        let balance: i128 = env
-            .storage()
-            .persistent()
-            .get(&balance_key)
-            .unwrap_or(0);
+        let balance: i128 = env.storage().persistent().get(&balance_key).unwrap_or(0);
         set_persistent(&env, &balance_key, &(balance + amount));
 
-        token::Client::new(&env, &token).transfer(
-            &from,
-            &env.current_contract_address(),
-            &amount,
-        );
+        token::Client::new(&env, &token).transfer(&from, &env.current_contract_address(), &amount);
 
         env.events()
             .publish((symbol_short!("pool_dep"),), (from, token, amount));
@@ -418,7 +411,7 @@ impl DepRaderRouter {
     pub fn create_bounty_from_pool(
         env: Env,
         issue_ref: String,
-        ecosystem: Option<Symbol>,
+        ecosystem: Option<String>,
         package: Option<String>,
         severity: Option<u32>,
         amount: i128,
@@ -453,11 +446,7 @@ impl DepRaderRouter {
         }
 
         let balance_key = DataKey::PoolBalance(token.clone());
-        let balance: i128 = env
-            .storage()
-            .persistent()
-            .get(&balance_key)
-            .unwrap_or(0);
+        let balance: i128 = env.storage().persistent().get(&balance_key).unwrap_or(0);
         if balance < amount {
             return Err(Error::InsufficientPoolBalance);
         }
@@ -602,6 +591,41 @@ impl DepRaderRouter {
             (creator, token, amount, deadline),
         );
         Ok(bounty_id)
+    }
+
+    /// Opens a bounty and records the SHA-256 digest of its confirmed report.
+    /// The digest is stored separately so existing bounty records remain readable.
+    pub fn create_bounty_with_proof(
+        env: Env,
+        creator: Address,
+        issue_ref: String,
+        proof_ref: soroban_sdk::BytesN<32>,
+        amount: i128,
+        token: Address,
+        deadline: u64,
+    ) -> Result<u64, Error> {
+        let id = Self::create_bounty(
+            env.clone(),
+            creator,
+            issue_ref,
+            None,
+            None,
+            None,
+            amount,
+            token,
+            deadline,
+            0,
+            None,
+        )?;
+        set_persistent(&env, &DataKey::BountyProof(id), &proof_ref);
+        Ok(id)
+    }
+
+    /// Returns the report digest for a bounty created with a proof.
+    pub fn bounty_proof(env: Env, bounty_id: u64) -> Option<soroban_sdk::BytesN<32>> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::BountyProof(bounty_id))
     }
 
     /// Reads back the stored state for a bounty, if one exists.
@@ -929,12 +953,7 @@ impl DepRaderRouter {
     /// Admin- or reviewer-only: pays the locked funds to the chosen claim's
     /// claimant and closes the bounty. Works after the deadline too, so claims
     /// submitted in time can still be paid during the review window.
-    pub fn release(
-        env: Env,
-        caller: Address,
-        bounty_id: u64,
-        claim_id: u32,
-    ) -> Result<(), Error> {
+    pub fn release(env: Env, caller: Address, bounty_id: u64, claim_id: u32) -> Result<(), Error> {
         let caller = require_admin_or_reviewer(&env, caller)?;
 
         if Self::is_paused(env.clone()) {
@@ -961,11 +980,7 @@ impl DepRaderRouter {
         );
         if drips_share > 0 {
             if let Some(destination) = bounty.drips_destination.clone() {
-                token_client.transfer(
-                    &env.current_contract_address(),
-                    &destination,
-                    &drips_share,
-                );
+                token_client.transfer(&env.current_contract_address(), &destination, &drips_share);
             }
         }
 
@@ -1181,4 +1196,14 @@ fn set_persistent<V: IntoVal<Env, Val>>(env: &Env, key: &DataKey, value: &V) {
 fn get_persistent<V: TryFromVal<Env, Val>>(env: &Env, key: &DataKey) -> Option<V> {
     let value = env.storage().persistent().get(key);
     if value.is_some() {
-        env.storage().persistent().extend_
+        env.storage().persistent().extend_ttl(
+            key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
+    }
+    value
+}
+
+#[cfg(test)]
+mod test;
