@@ -4,10 +4,13 @@
 //! [`Dependency`] values:
 //!
 //! - [`cargo`] — `Cargo.lock`
+//! - [`composer`] — `composer.lock`
+//! - [`go`] — `go.sum`
+//! - [`gradle`] — `gradle.lockfile`
 //! - [`npm`] — `package.json`
 //! - [`pnpm`] — `pnpm-lock.yaml` (v6 and v9)
 //! - [`pypi`] — `Pipfile.lock`, `pyproject.toml`
-//! - [`yarn`] — `yarn.lock` (v1)
+//! - [`yarn`] — `yarn.lock` (v1 and Berry)
 //!
 //! [`detect`] works out which format a file is from its name, and
 //! [`parse_file`] reads a file and dispatches it to the matching parser.
@@ -20,6 +23,9 @@ use std::path::{Path, PathBuf};
 use crate::model::Dependency;
 
 pub mod cargo;
+pub mod composer;
+pub mod go;
+pub mod gradle;
 pub mod npm;
 pub mod pnpm;
 pub mod pypi;
@@ -46,6 +52,12 @@ pub enum LockfileKind {
     PackageJson,
     /// PEP 621 `pyproject.toml` manifest (direct dependencies only).
     PyprojectToml,
+    /// Gradle `gradle.lockfile`.
+    GradleLock,
+    /// Go modules `go.sum`.
+    GoSum,
+    /// Composer `composer.lock`.
+    ComposerLock,
 }
 
 /// Works out a file's [`LockfileKind`] from its file name, ignoring the
@@ -61,6 +73,9 @@ pub fn detect(path: impl AsRef<Path>) -> Option<LockfileKind> {
         "Cargo.lock" => LockfileKind::CargoLock,
         "package.json" => LockfileKind::PackageJson,
         "pyproject.toml" => LockfileKind::PyprojectToml,
+        "gradle.lockfile" => LockfileKind::GradleLock,
+        "go.sum" => LockfileKind::GoSum,
+        "composer.lock" => LockfileKind::ComposerLock,
         name if name.starts_with("requirements") && name.ends_with(".txt") => {
             LockfileKind::Requirements
         }
@@ -173,6 +188,9 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::YarnLock => yarn::parse_yarn_lock,
         LockfileKind::PnpmLock => pnpm::parse_pnpm_lock,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
+        LockfileKind::GradleLock => gradle::parse_gradle_lockfile,
+        LockfileKind::GoSum => go::parse_go_sum,
+        LockfileKind::ComposerLock => composer::parse_composer_lock,
         LockfileKind::Requirements | LockfileKind::PackageLock | LockfileKind::PyprojectToml => {
             unreachable!("handled above")
         }
@@ -181,6 +199,9 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
     let ecosystem = match kind {
         LockfileKind::PipfileLock | LockfileKind::PoetryLock => Ecosystem::PyPI,
         LockfileKind::CargoLock => Ecosystem::CratesIo,
+        LockfileKind::GradleLock => Ecosystem::Maven,
+        LockfileKind::GoSum => Ecosystem::Go,
+        LockfileKind::ComposerLock => Ecosystem::Packagist,
         _ => Ecosystem::Npm,
     };
     Ok(ParsedLockfile {
@@ -209,6 +230,9 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Dependency>, ParseError>
         LockfileKind::Requirements => pypi::parse_requirements,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
         LockfileKind::PyprojectToml => pypi::parse_pyproject,
+        LockfileKind::GradleLock => gradle::parse_gradle_lockfile,
+        LockfileKind::GoSum => go::parse_go_sum,
+        LockfileKind::ComposerLock => composer::parse_composer_lock,
         LockfileKind::PackageLock => return Err(ParseError::Unsupported(kind)),
     };
     parse(&fs::read_to_string(path)?)
@@ -223,6 +247,8 @@ pub enum ParseError {
     Toml(toml::de::Error),
     /// The file isn't valid YAML, or doesn't have the expected shape.
     Yaml(serde_yaml::Error),
+    /// A line-based file has a line that doesn't have the expected shape.
+    Malformed(String),
     /// The file couldn't be read.
     Io(io::Error),
     /// The file name isn't one [`detect`] recognises.
@@ -237,6 +263,7 @@ impl fmt::Display for ParseError {
             ParseError::Json(err) => write!(f, "invalid JSON: {err}"),
             ParseError::Toml(err) => write!(f, "invalid TOML: {err}"),
             ParseError::Yaml(err) => write!(f, "invalid YAML: {err}"),
+            ParseError::Malformed(reason) => write!(f, "{reason}"),
             ParseError::Io(err) => write!(f, "couldn't read file: {err}"),
             ParseError::UnknownFile(path) => {
                 write!(f, "unrecognised lockfile name: {}", path.display())
@@ -253,7 +280,9 @@ impl std::error::Error for ParseError {
             ParseError::Toml(err) => Some(err),
             ParseError::Yaml(err) => Some(err),
             ParseError::Io(err) => Some(err),
-            ParseError::UnknownFile(_) | ParseError::Unsupported(_) => None,
+            ParseError::Malformed(_) | ParseError::UnknownFile(_) | ParseError::Unsupported(_) => {
+                None
+            }
         }
     }
 }
@@ -304,6 +333,9 @@ mod tests {
             ("Cargo.lock", Some(LockfileKind::CargoLock)),
             ("package.json", Some(LockfileKind::PackageJson)),
             ("pyproject.toml", Some(LockfileKind::PyprojectToml)),
+            ("gradle.lockfile", Some(LockfileKind::GradleLock)),
+            ("go.sum", Some(LockfileKind::GoSum)),
+            ("composer.lock", Some(LockfileKind::ComposerLock)),
             ("some/project/Cargo.lock", Some(LockfileKind::CargoLock)),
             ("Gemfile.lock", None),
             ("requirements.in", None),
@@ -326,6 +358,19 @@ mod tests {
 
         let package_json = parse_file(repo_path("tests/fixtures/package.json")).unwrap();
         assert!(package_json.iter().any(|d| d.name == "express"));
+    }
+
+    #[test]
+    fn parse_file_reads_yarn_v1_and_berry_lockfiles() {
+        for fixture in [
+            "tests/fixtures/yarn.lock",
+            "tests/fixtures/yarn-berry/yarn.lock",
+        ] {
+            let path = repo_path(fixture);
+            assert_eq!(detect(&path), Some(LockfileKind::YarnLock));
+            let deps = parse_file(&path).unwrap();
+            assert!(deps.iter().any(|d| d.name == "lodash"), "{fixture}");
+        }
     }
 
     #[test]
