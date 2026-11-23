@@ -142,6 +142,7 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::PnpmLock => pnpm::parse_pnpm_lock,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
         LockfileKind::Requirements | LockfileKind::PackageLock => {
+            // Invariant: Handled above via early returns before this dispatch block.
             unreachable!("handled above")
         }
     };
