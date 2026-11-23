@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { BountyList } from "./BountyList";
 import type { Bounty } from "../lib/types";
+import { NATIVE_XLM_SAC } from "../config";
 
 vi.mock("../components/Radar", () => ({ Radar: () => null }));
 
@@ -11,7 +12,7 @@ const bounty = (id: number, issueRef: string): Bounty => ({
   creator: "GCREATOR",
   issueRef,
   amount: 50_000_000n,
-  token: "NATIVE",
+  token: NATIVE_XLM_SAC,
   status: "Open",
   createdAt: 1_700_000_000,
   deadline: 1_900_000_000,
@@ -22,7 +23,7 @@ const bounty = (id: number, issueRef: string): Bounty => ({
 const fixtures = [bounty(1, "npm:lodash typosquat"), bounty(2, "npm:express typosquat")];
 
 vi.mock("../lib/contract", () => ({
-  listBounties: vi.fn(async () => fixtures),
+  listBountiesPage: vi.fn(async () => ({ bounties: fixtures, nextBeforeId: null })),
 }));
 
 function renderList() {
