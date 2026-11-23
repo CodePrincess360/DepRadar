@@ -109,3 +109,11 @@ rated **high** (see above).
 2. Use the shared [`Severity`](../src/cve/severity.rs) enum — don't invent
    per-detector levels.
 3. Add a row or bullet with a concrete example on this page.
+
+## Repository scan indicators
+
+Suspicious padding in a build configuration and literal matches from a
+trusted IOC rule feed are medium-severity repository findings. Review the
+file before confirming a finding. The defanged example in
+[`tests/fixtures/repo-scan/positive`](../tests/fixtures/repo-scan/positive)
+uses a harmless comment hidden after a long span of whitespace.

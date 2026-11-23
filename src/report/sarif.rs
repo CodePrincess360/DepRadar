@@ -2,8 +2,8 @@
 //! output, the format GitHub code scanning ingests.
 //!
 //! The run declares one rule per [`FindingKind`] (`typosquat`,
-//! `vulnerability` and `non-registry-source`) and one result per finding. Each result points at the
-//! scanned lockfile, on the first line that names the package when the
+//! `vulnerability`, `non-registry-source`, `deprecated` and `license`) and one result per finding.
+//! Each result points at the scanned lockfile, on the first line that names the package when the
 //! lockfile's contents are available. Severity maps to the SARIF `level`
 //! (critical/high → `error`, medium → `warning`, low → `note`) and to the
 //! `security-severity` score GitHub uses to rank security alerts.
@@ -31,7 +31,7 @@ struct Rule {
     default_severity: Severity,
 }
 
-const RULES: [Rule; 3] = [
+const RULES: [Rule; 5] = [
     Rule {
         id: "typosquat",
         name: "Typosquat",
@@ -57,6 +57,20 @@ const RULES: [Rule; 3] = [
                the package registry, so registry-side checks don't cover it.",
         default_severity: Severity::Low,
     },
+    Rule {
+        id: "deprecated",
+        name: "DeprecatedDependency",
+        short: "Dependency version is deprecated or yanked",
+        full: "The package registry flagged this version.",
+        default_severity: Severity::Low,
+    },
+    Rule {
+        id: "license",
+        name: "LicensePolicy",
+        short: "Dependency license is outside the allowlist",
+        full: "The package license is outside the configured policy.",
+        default_severity: Severity::Low,
+    },
 ];
 
 fn rule_index(kind: &FindingKind) -> usize {
@@ -64,6 +78,8 @@ fn rule_index(kind: &FindingKind) -> usize {
         FindingKind::Typosquat { .. } => 0,
         FindingKind::Vulnerability { .. } => 1,
         FindingKind::NonRegistrySource { .. } => 2,
+        FindingKind::Deprecated { .. } => 3,
+        FindingKind::License { .. } => 4,
     }
 }
 
@@ -145,7 +161,7 @@ fn result(
         .unwrap_or(1);
     let advisory = match &finding.kind {
         FindingKind::Vulnerability { advisory_id } => advisory_id.as_str(),
-        FindingKind::Typosquat { .. } | FindingKind::NonRegistrySource { .. } => "",
+        _ => "",
     };
     let fingerprint = format!(
         "{}:{}:{}@{}:{advisory}",

@@ -21,19 +21,54 @@
 /// the index in both strings where one character replaced another; and for
 /// [`EditOp::Transpose`] it is the index of the first of the two swapped
 /// characters in the source string.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
 pub enum EditOp {
     /// A character was inserted at `pos` in the target.
-    Insert { pos: usize, ch: char },
+    Insert {
+        #[serde(rename = "position")]
+        pos: usize,
+        #[serde(rename = "char")]
+        ch: char,
+    },
     /// The character `ch` at `pos` in the source was deleted.
-    Delete { pos: usize, ch: char },
+    Delete {
+        #[serde(rename = "position")]
+        pos: usize,
+        #[serde(rename = "char")]
+        ch: char,
+    },
     /// The character at `pos` was replaced by `to`.
-    Substitute { pos: usize, from: char, to: char },
+    Substitute {
+        #[serde(rename = "position")]
+        pos: usize,
+        from: char,
+        to: char,
+    },
     /// Two adjacent characters at `pos` and `pos + 1` were swapped.
-    Transpose { pos: usize, first: char, second: char },
+    Transpose {
+        #[serde(rename = "position")]
+        pos: usize,
+        first: char,
+        second: char,
+    },
 }
 
 impl EditOp {
+    /// Human-readable description of the edit recorded in a scan.
+    pub fn describe(&self) -> String {
+        match *self {
+            Self::Insert { pos, ch } => format!("inserted '{ch}' at {pos}"),
+            Self::Delete { pos, ch } => format!("deleted '{ch}' at {pos}"),
+            Self::Substitute { pos, from, to } => {
+                format!("substituted '{to}' for '{from}' at {pos}")
+            }
+            Self::Transpose { pos, first, second } => {
+                format!("transposed '{first}' and '{second}' at {pos}")
+            }
+        }
+    }
+
     /// The position associated with this operation.
     pub fn pos(&self) -> usize {
         match *self {
@@ -128,11 +163,7 @@ pub fn edit_script(from: &str, to: &str) -> Vec<EditOp> {
     let mut ops: Vec<EditOp> = Vec::new();
     let (mut i, mut j) = (n, m);
     while i > 0 || j > 0 {
-        if i > 0
-            && j > 0
-            && a[i - 1] == b[j - 1]
-            && dp[i][j] == dp[i - 1][j - 1]
-        {
+        if i > 0 && j > 0 && a[i - 1] == b[j - 1] && dp[i][j] == dp[i - 1][j - 1] {
             // Match: no operation.
             i -= 1;
             j -= 1;
@@ -278,13 +309,7 @@ mod tests {
     fn edit_script_reports_insertion() {
         // `expresss` = `express` + inserted `s` at position 7.
         let ops = edit_script("express", "expresss");
-        assert_eq!(
-            ops,
-            vec![EditOp::Insert {
-                pos: 7,
-                ch: 's'
-            }]
-        );
+        assert_eq!(ops, vec![EditOp::Insert { pos: 7, ch: 's' }]);
         assert_eq!(edit_distance_with_transpositions("express", "expresss"), 1);
     }
 
@@ -292,13 +317,7 @@ mod tests {
     fn edit_script_reports_deletion() {
         // `expres` = `express` with the `s` at position 6 deleted.
         let ops = edit_script("express", "expres");
-        assert_eq!(
-            ops,
-            vec![EditOp::Delete {
-                pos: 6,
-                ch: 's'
-            }]
-        );
+        assert_eq!(ops, vec![EditOp::Delete { pos: 6, ch: 's' }]);
         assert_eq!(edit_distance_with_transpositions("express", "expres"), 1);
     }
 
@@ -314,10 +333,7 @@ mod tests {
                 to: 'z'
             }]
         );
-        assert_eq!(
-            edit_distance_with_transpositions("requests", "requezts"),
-            1
-        );
+        assert_eq!(edit_distance_with_transpositions("requests", "requezts"), 1);
     }
 
     #[test]
@@ -371,7 +387,10 @@ mod tests {
             ("", "react"),
             ("react", ""),
         ] {
-            assert_eq!(edit_script(a, b).len(), edit_distance_with_transpositions(a, b));
+            assert_eq!(
+                edit_script(a, b).len(),
+                edit_distance_with_transpositions(a, b)
+            );
         }
     }
 

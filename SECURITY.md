@@ -74,3 +74,10 @@ If you've found a malicious or typosquatted package *in a public registry*
 [PyPI](https://pypi.org/security/),
 [crates.io](https://crates.io/policies/security). Then feel free to open a
 regular issue here so DepRadar's detection can be checked against it.
+
+## Findings in scanned repositories
+
+Notify the affected project's maintainers through their private security
+channel. Keep the scan report private and record the agreed embargo before
+publishing or opening a bounty. See the [repository scan operations
+guide](docs/repo-scan/operations.md) for the CLI workflow.
