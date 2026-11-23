@@ -1,9 +1,8 @@
 use super::{
-    BountyStatus, ClaimStatus, DepRaderRouter, DepRaderRouterClient, Error, MAX_BOUNTY_DURATION_SECS,
-    MAX_CLAIMS_PER_BOUNTY, MAX_DRIPS_SHARE_BPS, MAX_ECOSYSTEM_LEN, MAX_PACKAGE_LEN, MAX_REF_LEN,
-    REVIEW_WINDOW_SECS,
+    BountyStatus, ClaimStatus, DepRaderRouter, DepRaderRouterClient, Error,
+    MAX_BOUNTY_DURATION_SECS, MAX_CLAIMS_PER_BOUNTY, MAX_DRIPS_SHARE_BPS, MAX_ECOSYSTEM_LEN,
+    MAX_PACKAGE_LEN, MAX_REF_LEN, REVIEW_WINDOW_SECS,
 };
-use crate::pool::{BountyPool, BountyPoolClient};
 use soroban_sdk::{
     symbol_short,
     testutils::{Address as _, Events, Ledger},
@@ -68,12 +67,14 @@ impl Setup<'_> {
         self.client.create_bounty(
             &self.creator,
             &self.s("org/repo#123"),
-            &AMOUNT,
-            &self.token.address,
-            &DEADLINE,
             &Some(self.s("rust")),
             &Some(self.s("serde")),
             &Some(3),
+            &AMOUNT,
+            &self.token.address,
+            &DEADLINE,
+            &0,
+            &None,
         )
     }
 
@@ -90,34 +91,36 @@ impl Setup<'_> {
             .try_create_bounty(
                 &self.creator,
                 &self.s(issue_ref),
-                &AMOUNT,
-                &self.token.address,
-                &DEADLINE,
                 &ecosystem,
                 &package,
                 &severity,
+                &AMOUNT,
+                &self.token.address,
+                &DEADLINE,
+                &0,
+                &None,
             )
             .map_err(|e| e.unwrap())
     }
 
     fn add_reviewer(&self, reviewer: &Address) {
-        self.client.add_reviewer(&self.admin, reviewer);
+        self.client.add_reviewer(reviewer);
     }
 
     /// Create a bounty that routes `drips_share_bps` of the released amount
     /// to `drips_dest`.
     fn create_with_drips(&self, drips_share_bps: u32, drips_dest: &Address) -> u64 {
-        self.client.create_bounty_with_drips(
+        self.client.create_bounty(
             &self.creator,
             &self.s("org/repo#123"),
+            &Some(self.s("rust")),
+            &Some(self.s("serde")),
+            &Some(3),
             &AMOUNT,
             &self.token.address,
             &DEADLINE,
-            &Some(symbol_short!("rust")),
-            &Some(self.s("serde")),
-            &Some(3),
             &drips_share_bps,
-            &Some(drips_dest.clone()),
+            &(drips_share_bps > 0).then(|| drips_dest.clone()),
         )
     }
 
@@ -169,11 +172,13 @@ fn test_create_requires_initialized_contract() {
     let result = client.try_create_bounty(
         &creator,
         &String::from_str(&env, "org/repo#1"),
+        &None,
+        &None,
+        &None,
         &AMOUNT,
         &token,
         &DEADLINE,
-        &None,
-        &None,
+        &0,
         &None,
     );
     assert_eq!(result, Err(Ok(Error::NotInitialized)));
@@ -190,11 +195,13 @@ fn test_admin_can_pause_and_resume_bounty_operations() {
         t.client.try_create_bounty(
             &t.creator,
             &t.s("org/repo#paused"),
+            &None,
+            &None,
+            &None,
             &AMOUNT,
             &t.token.address,
             &DEADLINE,
-            &None,
-            &None,
+            &0,
             &None,
         ),
         Err(Ok(Error::Paused))
@@ -248,11 +255,13 @@ fn test_create_bounty_rejects_bad_input() {
         t.client.try_create_bounty(
             &t.creator,
             &t.s(r),
+            &None,
+            &None,
+            &None,
             &amount,
             &t.token.address,
             &deadline,
-            &None,
-            &None,
+            &0,
             &None,
         )
     };
@@ -361,11 +370,11 @@ fn test_admin_can_grant_and_revoke_reviewer() {
 
     assert!(!t.client.is_reviewer(&reviewer));
 
-    t.client.add_reviewer(&t.admin, &reviewer);
+    t.client.add_reviewer(&reviewer);
     assert_eq!(t.last_auth(), t.admin);
     assert!(t.client.is_reviewer(&reviewer));
 
-    t.client.remove_reviewer(&t.admin, &reviewer);
+    t.client.remove_reviewer(&reviewer);
     assert_eq!(t.last_auth(), t.admin);
     assert!(!t.client.is_reviewer(&reviewer));
 }
@@ -374,21 +383,15 @@ fn test_admin_can_grant_and_revoke_reviewer() {
 fn test_non_admin_cannot_grant_or_revoke_reviewer() {
     let t = setup();
     let reviewer = Address::generate(&t.env);
-    let stranger = Address::generate(&t.env);
 
     t.env.set_auths(&[]);
-    assert!(t
-        .client
-        .try_add_reviewer(&stranger, &reviewer)
-        .is_err());
+    assert!(t.client.try_add_reviewer(&reviewer).is_err());
     assert!(!t.client.is_reviewer(&reviewer));
 
-    t.client.add_reviewer(&t.admin, &reviewer);
+    t.env.mock_all_auths();
+    t.client.add_reviewer(&reviewer);
     t.env.set_auths(&[]);
-    assert!(t
-        .client
-        .try_remove_reviewer(&stranger, &reviewer)
-        .is_err());
+    assert!(t.client.try_remove_reviewer(&reviewer).is_err());
     assert!(t.client.is_reviewer(&reviewer));
 }
 
@@ -987,7 +990,7 @@ fn test_release_with_zero_drips_share_pays_claimant_in_full() {
 
     let bounty = t.client.get_bounty(&bounty_id).unwrap();
     assert_eq!(bounty.drips_share_bps, 0);
-    assert_eq!(bounty.drips_dest, Some(drips_dest));
+    assert_eq!(bounty.drips_destination, None);
 }
 
 #[test]
@@ -1031,42 +1034,43 @@ fn test_release_with_drips_share_rounds_down() {
 }
 
 #[test]
-fn test_release_with_capped_drips_share() {
+fn test_create_bounty_rejects_share_over_cap() {
     let t = setup();
     let drips_dest = Address::generate(&t.env);
-    // Ask for more than the cap; the contract clamps it to MAX_DRIPS_SHARE_BPS.
-    let bounty_id = t.create_with_drips(MAX_DRIPS_SHARE_BPS + 1_000, &drips_dest);
-    let (claimant, claim_id) = t.claim(bounty_id);
-
-    t.client.release(&t.admin, &bounty_id, &claim_id);
-    assert_eq!(t.last_event_topic(), symbol_short!("released"));
-
-    let bounty = t.client.get_bounty(&bounty_id).unwrap();
-    assert_eq!(bounty.drips_share_bps, MAX_DRIPS_SHARE_BPS);
-
-    let drips_amount = AMOUNT * MAX_DRIPS_SHARE_BPS as i128 / 10_000;
-    assert_eq!(t.token.balance(&drips_dest), drips_amount);
-    assert_eq!(t.token.balance(&claimant), AMOUNT - drips_amount);
-    assert_eq!(t.token.balance(&t.client.address), 0);
+    assert_eq!(
+        t.client.try_create_bounty(
+            &t.creator,
+            &t.s("org/repo#123"),
+            &None,
+            &None,
+            &None,
+            &AMOUNT,
+            &t.token.address,
+            &DEADLINE,
+            &(MAX_DRIPS_SHARE_BPS + 1),
+            &Some(drips_dest),
+        ),
+        Err(Ok(Error::InvalidDripsShare))
+    );
 }
 
 #[test]
 fn test_create_bounty_with_drips_requires_destination() {
     let t = setup();
     assert_eq!(
-        t.client.try_create_bounty_with_drips(
+        t.client.try_create_bounty(
             &t.creator,
             &t.s("org/repo#123"),
+            &None,
+            &None,
+            &None,
             &AMOUNT,
             &t.token.address,
             &DEADLINE,
-            &None,
-            &None,
-            &None,
             &1_000,
             &None,
         ),
-        Err(Ok(Error::InvalidDripsConfig))
+        Err(Ok(Error::InvalidDripsShare))
     );
     assert_eq!(t.client.bounty_count(), 0);
 }
@@ -1273,11 +1277,13 @@ fn test_create_bounty_rejects_disallowed_token() {
     let result = t.client.try_create_bounty(
         &t.creator,
         &t.s("org/repo#1"),
+        &None,
+        &None,
+        &None,
         &AMOUNT,
         &t.token.address,
         &DEADLINE,
-        &None,
-        &None,
+        &0,
         &None,
     );
     assert_eq!(result, Err(Ok(Error::TokenNotAllowed)));
@@ -1312,11 +1318,13 @@ fn test_min_amount_defaults_to_zero() {
     let bounty_id = t.client.create_bounty(
         &t.creator,
         &t.s("org/repo#1"),
+        &None,
+        &None,
+        &None,
         &1,
         &t.token.address,
         &DEADLINE,
-        &None,
-        &None,
+        &0,
         &None,
     );
     assert_eq!(bounty_id, 1);
@@ -1343,11 +1351,13 @@ fn test_create_bounty_enforces_min_amount() {
         t.client.try_create_bounty(
             &t.creator,
             &t.s("org/repo#1"),
+            &None,
+            &None,
+            &None,
             &amount,
             &t.token.address,
             &DEADLINE,
-            &None,
-            &None,
+            &0,
             &None,
         )
     };
@@ -1377,11 +1387,13 @@ fn test_min_amount_is_per_token() {
     let bounty_id = t.client.create_bounty(
         &t.creator,
         &t.s("org/repo#1"),
+        &None,
+        &None,
+        &None,
         &1,
         &other,
         &DEADLINE,
-        &None,
-        &None,
+        &0,
         &None,
     );
     assert_eq!(bounty_id, 1);
@@ -1402,143 +1414,44 @@ fn test_get_config_matches_constants() {
 
 // ------------------------------------------------------------ bounty pool
 
-struct PoolSetup<'a> {
-    env: Env,
-    router: DepRaderRouterClient<'a>,
-    pool: BountyPoolClient<'a>,
-    token: TokenClient<'a>,
-    admin: Address,
-}
-
-/// Router + pool wired together, with the pool allowlisted on the router and
-/// `funder` holding 1_000 units of the pool's token.
-fn pool_setup<'a>() -> PoolSetup<'a> {
-    let env = Env::default();
-    env.mock_all_auths();
-    env.ledger().set_timestamp(START);
-
-    let admin = Address::generate(&env);
-    let funder = Address::generate(&env);
-
-    let token_admin = Address::generate(&env);
-    let sac = env.register_stellar_asset_contract_v2(token_admin);
-    let token = TokenClient::new(&env, &sac.address());
-    StellarAssetClient::new(&env, &sac.address()).mint(&funder, &1_000);
-
-    let router_id = env.register(DepRaderRouter, ());
-    let router = DepRaderRouterClient::new(&env, &router_id);
-    router.initialize(&admin);
-    router.allow_token(&sac.address());
-
-    let pool_id = env.register(BountyPool, ());
-    let pool = BountyPoolClient::new(&env, &pool_id);
-    pool.initialize(&admin, &router_id, &sac.address());
-    router.allow_token(&pool_id);
-
-    PoolSetup {
-        env,
-        router,
-        pool,
-        token,
-        admin,
-    }
-}
-
-impl PoolSetup<'_> {
-    fn s(&self, v: &str) -> String {
-        String::from_str(&self.env, v)
-    }
-
-    fn deposit(&self, amount: i128) {
-        let funder = Address::generate(&self.env);
-        StellarAssetClient::new(&self.env, &self.token.address).mint(&funder, &amount);
-        self.pool.deposit(&funder, &amount);
-    }
-
-    fn open(&self, issue_ref: &str, amount: i128) -> Result<u64, Error> {
-        self.pool
-            .try_open_bounty(
-                &self.admin,
-                &self.s(issue_ref),
-                &amount,
-                &DEADLINE,
-                &None,
-                &None,
-                &None,
-            )
-            .map_err(|e| e.unwrap())
-    }
-}
-
 #[test]
-fn test_pool_receives_deposits() {
-    let t = pool_setup();
-    assert_eq!(t.pool.get_balance(), 0);
+fn test_pool_receives_deposits_and_funds_bounties() {
+    let t = setup();
+    t.client.set_pool_address(&t.creator);
+    t.client.deposit_to_pool(&t.creator, &t.token.address, &500);
+    assert_eq!(t.client.get_pool_address(), Some(t.creator.clone()));
+    assert_eq!(t.client.get_pool_balance(&t.token.address), 500);
+    assert_eq!(t.token.balance(&t.client.address), 500);
 
-    t.deposit(300);
-    assert_eq!(t.pool.get_balance(), 300);
-    assert_eq!(t.token.balance(&t.pool.address), 300);
-    assert_eq!(t.pool.get_admin(), Some(t.admin.clone()));
-}
+    let issue = t.s("org/repo#1");
+    let open = |amount| {
+        t.client.try_create_bounty_from_pool(
+            &issue,
+            &None,
+            &None,
+            &None,
+            &amount,
+            &t.token.address,
+            &DEADLINE,
+        )
+    };
+    assert_eq!(open(501), Err(Ok(Error::InsufficientPoolBalance)));
+    assert_eq!(open(0), Err(Ok(Error::InvalidAmount)));
+    assert_eq!(open(-1), Err(Ok(Error::InvalidAmount)));
+    assert_eq!(t.client.get_pool_balance(&t.token.address), 500);
 
-#[test]
-fn test_pool_admin_opens_bounty_from_pool_balance() {
-    let t = pool_setup();
-    t.deposit(500);
-
-    let bounty_id = t.open("org/repo#1", 200).unwrap();
-    assert_eq!(bounty_id, 1);
-    assert_eq!(t.pool.get_balance(), 300);
-    assert_eq!(t.token.balance(&t.pool.address), 300);
-
-    // The bounty is owned by the pool and funded on the router.
-    let bounty = t.router.get_bounty(&bounty_id).unwrap();
-    assert_eq!(bounty.creator, t.pool.address);
+    let bounty_id = open(200).unwrap().unwrap();
+    let bounty = t.client.get_bounty(&bounty_id).unwrap();
+    assert_eq!(bounty.creator, t.admin);
     assert_eq!(bounty.amount, 200);
     assert_eq!(bounty.token, t.token.address);
     assert_eq!(bounty.status, BountyStatus::Open);
-    assert_eq!(t.token.balance(&t.router.address), 200);
-}
+    assert_eq!(t.client.get_pool_balance(&t.token.address), 300);
+    assert_eq!(t.token.balance(&t.client.address), 500);
 
-#[test]
-fn test_pool_open_bounty_rejects_insufficient_balance() {
-    let t = pool_setup();
-    t.deposit(100);
-
-    assert_eq!(t.open("org/repo#1", 101), Err(Error::InsufficientPoolBalance));
-    // Nothing moved and no bounty was created.
-    assert_eq!(t.pool.get_balance(), 100);
-    assert_eq!(t.router.bounty_count(), 0);
-}
-
-#[test]
-fn test_pool_open_bounty_rejects_non_admin() {
-    let t = pool_setup();
-    t.deposit(500);
-    let stranger = Address::generate(&t.env);
-
-    let result = t.pool.try_open_bounty(
-        &stranger,
-        &t.s("org/repo#1"),
-        &100,
-        &DEADLINE,
-        &None,
-        &None,
-        &None,
-    );
-    assert_eq!(result, Err(Ok(Error::NotAuthorized)));
-    assert_eq!(t.pool.get_balance(), 500);
-    assert_eq!(t.router.bounty_count(), 0);
-}
-
-#[test]
-fn test_pool_open_bounty_rejects_invalid_amount() {
-    let t = pool_setup();
-    t.deposit(500);
-
-    assert_eq!(t.open("org/repo#1", 0), Err(Error::InvalidAmount));
-    assert_eq!(t.open("org/repo#1", -1), Err(Error::InvalidAmount));
-    assert_eq!(t.pool.get_balance(), 500);
+    t.env.set_auths(&[]);
+    assert!(open(100).is_err());
+    assert_eq!(t.client.get_pool_balance(&t.token.address), 300);
 }
 
 // ---- Resource budget regression -------------------------------------------
@@ -1557,8 +1470,14 @@ fn report_and_check_budget(env: &Env, call: &str) {
     let cpu = budget.cpu_instruction_cost();
     let mem = budget.memory_bytes_cost();
     println!("budget {call}: cpu_instructions={cpu} (ceiling {CPU_CEILING}), memory_bytes={mem} (ceiling {MEM_CEILING})");
-    assert!(cpu < CPU_CEILING, "{call} used {cpu} CPU instructions, ceiling is {CPU_CEILING}");
-    assert!(mem < MEM_CEILING, "{call} used {mem} memory bytes, ceiling is {MEM_CEILING}");
+    assert!(
+        cpu < CPU_CEILING,
+        "{call} used {cpu} CPU instructions, ceiling is {CPU_CEILING}"
+    );
+    assert!(
+        mem < MEM_CEILING,
+        "{call} used {mem} memory bytes, ceiling is {MEM_CEILING}"
+    );
 }
 
 #[test]
@@ -1576,4 +1495,32 @@ fn test_resource_budget_for_bounty_lifecycle() {
     t.env.cost_estimate().budget().reset_default();
     t.client.release(&t.admin, &bounty_id, &claim_id);
     report_and_check_budget(&t.env, "release");
+}
+
+#[test]
+fn confirmed_report_proof_is_persisted_only_for_successful_bounties() {
+    let t = setup();
+    let proof = soroban_sdk::BytesN::from_array(&t.env, &[42; 32]);
+    let id = t.client.create_bounty_with_proof(
+        &t.creator,
+        &t.s("public-advisory"),
+        &proof,
+        &AMOUNT,
+        &t.token.address,
+        &DEADLINE,
+    );
+    assert_eq!(t.client.bounty_proof(&id), Some(proof.clone()));
+    assert_eq!(t.client.get_bounty(&id).unwrap().amount, AMOUNT);
+    assert_eq!(
+        t.client.try_create_bounty_with_proof(
+            &t.creator,
+            &t.s("public-advisory"),
+            &proof,
+            &0,
+            &t.token.address,
+            &DEADLINE,
+        ),
+        Err(Ok(Error::InvalidAmount)),
+    );
+    assert_eq!(t.client.bounty_proof(&(id + 1)), None);
 }

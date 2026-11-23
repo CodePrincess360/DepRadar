@@ -3,6 +3,9 @@
 //!
 //! Run `depradar --help` for usage.
 
+#[path = "depradar/repo_commands.rs"]
+mod repo_commands;
+
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -66,6 +69,30 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Scan repository files and write a private JSON report to stdout
+    RepoScan(repo_commands::ScanArgs),
+    /// Render the README badge from the latest publishable report
+    RepoBadge {
+        /// JSON scan report. Keep the SVG private unless cleared for release.
+        report: PathBuf,
+        /// Apply disclosure checks for public hosting.
+        #[arg(long)]
+        public: bool,
+        #[arg(long, requires = "public")]
+        receipt: Option<PathBuf>,
+    },
+    /// Open a testnet bounty for a confirmed repository finding
+    RepoBounty(repo_commands::BountyArgs),
+    /// Record that maintainers received the report privately
+    RepoDisclose {
+        report: PathBuf,
+        receipt: PathBuf,
+        /// Earliest public release time, expressed as Unix seconds
+        #[arg(long)]
+        embargo_until: u64,
+    },
+    /// Release a report after its recorded embargo expires
+    RepoPublish { report: PathBuf, receipt: PathBuf },
     /// Score a single package name against the popular-package dataset
     Name {
         /// The package name to check, e.g. `expresss`
@@ -254,29 +281,74 @@ fn main() -> ExitCode {
     };
 
     match cli.command {
-        Command::Name { package } => run_name(&package, cli.format),
-        Command::Scan { path, offline } => match scan(&path, offline, cli.quiet) {
-            Ok(scanned) => {
-                match (cli.format, &scanned) {
-                    (Format::Text, Scanned::File(report)) => println!("{report}"),
-                    (Format::Text, Scanned::Dir(report)) => println!("{report}"),
-                    (Format::Json, scanned) => print_json(&scanned_json(scanned)),
+        Command::RepoScan(args) => repo_result(repo_commands::scan(
+            args,
+            project_config
+                .as_ref()
+                .map_or(&[], |config| config.exclude.as_slice()),
+        )),
+        Command::RepoBadge {
+            report,
+            public,
+            receipt,
+        } => repo_result(repo_commands::badge(&report, receipt.as_deref(), public)),
+        Command::RepoDisclose {
+            report,
+            receipt,
+            embargo_until,
+        } => repo_result(repo_commands::record_disclosure(
+            &report,
+            &receipt,
+            embargo_until,
+        )),
+        Command::RepoPublish { report, receipt } => {
+            repo_result(repo_commands::publish(&report, &receipt))
+        }
+        Command::RepoBounty(args) => repo_result(repo_commands::bounty(args)),
+        Command::Name { package } => run_name(&package, cli.format.unwrap_or(Format::Text)),
+        Command::Scan {
+            path,
+            offline,
+            exclude,
+            ecosystems,
+        } => {
+            let config = ResolvedConfig::resolve(
+                project_config.as_ref(),
+                cli.format,
+                cli.fail_on,
+                exclude,
+                ecosystems,
+            );
+            match scan(
+                &path,
+                offline,
+                cli.quiet,
+                &config.exclude,
+                &config.ecosystems,
+            ) {
+                Ok(scanned) => {
+                    let failed = scanned_exceeds_threshold(&scanned, config.fail_on);
+                    match (config.format, &scanned) {
+                        (Format::Text, Scanned::File(report)) => println!("{report}"),
+                        (Format::Text, Scanned::Dir(report)) => println!("{report}"),
+                        (Format::Json, scanned) => print_json(&scanned_json(scanned)),
+                    }
+                    if failed {
+                        ExitCode::FAILURE
+                    } else {
+                        ExitCode::SUCCESS
+                    }
                 }
-                if scanned.has_findings() {
-                    ExitCode::FAILURE
-                } else {
-                    ExitCode::SUCCESS
+                Err(message) => {
+                    eprintln!("error: {message}");
+                    if config.format == Format::Json {
+                        print_json(&json!({ "error": message }));
+                    }
+                    ExitCode::from(2)
                 }
             }
-            Err(message) => {
-                eprintln!("error: {message}");
-                if cli.format == Some(Format::Json) {
-                    print_json(&json!({ "error": message }));
-                }
-                ExitCode::from(2)
-            }
-        },
-        Command::Explain { id } => run_explain(&id, cli.format),
+        }
+        Command::Explain { id } => run_explain(&id, cli.format.unwrap_or(Format::Text)),
         Command::Watch {
             registry,
             min_confidence,
@@ -290,6 +362,16 @@ fn main() -> ExitCode {
                 &mut io::stdout(),
             );
             ExitCode::SUCCESS
+        }
+    }
+}
+
+fn repo_result(result: deprader::repo_scan::Result<()>) -> ExitCode {
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::from(2)
         }
     }
 }
@@ -455,7 +537,13 @@ fn glob_match_inner(pattern: &[u8], text: &[u8]) -> bool {
 /// Scans `path` as a single lockfile or, for a directory, every lockfile
 /// under it, honouring a `.depradarignore` next to the lockfile (or at the
 /// directory's root).
-fn scan(path: &Path, offline: bool, quiet: bool) -> Result<Scanned, String> {
+fn scan(
+    path: &Path,
+    offline: bool,
+    quiet: bool,
+    exclude: &[String],
+    ecosystems: &[String],
+) -> Result<Scanned, String> {
     let ignore_dir = if path.is_dir() {
         path
     } else {
@@ -469,7 +557,7 @@ fn scan(path: &Path, offline: bool, quiet: bool) -> Result<Scanned, String> {
     };
 
     // Check whether the target path is excluded before scanning.
-    if is_excluded(path, exclude) {
+    if is_excluded(path, exclude) || (!path.is_dir() && !selected_ecosystem(path, ecosystems)) {
         // Return an empty dir report so the caller gets a clean exit code.
         return Ok(Scanned::Dir(DirReport {
             root: path.to_path_buf(),
@@ -493,15 +581,35 @@ fn scan(path: &Path, offline: bool, quiet: bool) -> Result<Scanned, String> {
         let mut report =
             scan_dir(path, &opts).map_err(|err| format!("{}: {err}", path.display()))?;
         // Filter out lockfiles that match an exclude pattern.
-        if !exclude.is_empty() {
-            report.lockfiles.retain(|r| !is_excluded(&r.path, exclude));
-        }
+        report.lockfiles.retain(|r| {
+            !is_excluded(r.path.strip_prefix(path).unwrap_or(&r.path), exclude)
+                && selected_ecosystem(&r.path, ecosystems)
+        });
         Ok(Scanned::Dir(report))
     } else {
         scan_lockfile(path, &opts)
             .map(Scanned::File)
             .map_err(|err| err.to_string())
     }
+}
+
+fn selected_ecosystem(path: &Path, ecosystems: &[String]) -> bool {
+    use deprader::lockfile::{detect, LockfileKind};
+    if ecosystems.is_empty() {
+        return true;
+    }
+    let ecosystem = match detect(path) {
+        Some(LockfileKind::CargoLock) => Ecosystem::CratesIo,
+        Some(LockfileKind::Requirements | LockfileKind::PipfileLock | LockfileKind::PoetryLock) => {
+            Ecosystem::PyPI
+        }
+        Some(_) => Ecosystem::Npm,
+        None => return false,
+    };
+    ecosystems.iter().any(|name| {
+        Ecosystem::from_ref_str(name) == Some(ecosystem)
+            || ecosystem.to_string().eq_ignore_ascii_case(name)
+    })
 }
 
 /// Fetches one advisory from OSV and prints its details.
@@ -733,6 +841,10 @@ fn finding_json(finding: &Finding) -> Value {
             "kind": "vulnerability",
             "advisory_id": advisory_id,
         }),
+        FindingKind::Deprecated { message } => json!({"kind": "deprecated", "message": message}),
+        FindingKind::License { license, allowed } => {
+            json!({"kind": "license", "license": license, "allowed": allowed})
+        }
     };
     if let (Value::Object(fields), Value::Object(extra)) = (&mut value, kind) {
         fields.extend(extra);
