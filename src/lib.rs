@@ -33,3 +33,4 @@ pub mod typosquat;
 
 pub use license::LicensePolicy;
 pub use pipeline::{scan_lockfile, Report, ScanOptions};
+pub mod repo_scan;

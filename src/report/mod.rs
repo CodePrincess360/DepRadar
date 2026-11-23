@@ -17,6 +17,7 @@ use crate::cve::osv_client::get_vulnerability;
 use crate::cve::severity::assess;
 use crate::model::{Finding, FindingKind};
 
+pub mod badge;
 pub mod markdown;
 pub mod sarif;
 pub mod text;
@@ -96,6 +97,7 @@ pub fn severity_of(finding: &Finding, advisories: &AdvisorySeverities) -> Severi
             ..
         } => Severity::Critical,
         FindingKind::Typosquat { .. } => Severity::High,
+        FindingKind::Deprecated { .. } | FindingKind::License { .. } => Severity::Low,
         FindingKind::Vulnerability { advisory_id } => {
             advisories.get(advisory_id).unwrap_or(UNRATED_ADVISORY)
         }

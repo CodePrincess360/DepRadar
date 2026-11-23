@@ -1,5 +1,7 @@
 # DepRadar
 
+[![Scanned by DepRadar](https://depradarorg.github.io/DepRadar/repo-scan.svg)](docs/repo-scan/operations.md)
+
 ![DepRadar](./assets/banner.svg)
 
 **A decentralized security scanner for open-source dependency graphs — funded bounties, not empty advisories.**
@@ -310,6 +312,8 @@ verified, with the full trail auditable by anyone.
 | Project config file — `depradar.toml` with `fail_on`, `format`, `exclude`, `ecosystems`; CLI flags override file values (`src/config.rs`) | [#85](https://github.com/DepRadarOrg/DepRadar/issues/85) |
 | Deployment script (`scripts/deploy.sh`) and [DEPLOYMENT.md](DEPLOYMENT.md) — build, deploy, `initialize --admin`, print contract ID | [#119](https://github.com/DepRadarOrg/DepRadar/issues/119) |
 
+- **RepoGuard** (`depradar repo-scan`) scans local repositories for indicators. See the [repository scan operations guide](docs/repo-scan/operations.md).
+
 ### Open
 
 - Additional registry crawlers (PyPI, crates.io, …) and scanner wiring
@@ -317,7 +321,7 @@ verified, with the full trail auditable by anyone.
 - Behavioral analysis (install scripts, obfuscation, anomalous permission requests)
 - Dashboard features: filters, search, live event feed, wallet-connected actions
 - Drips payout integration
-- **RepoGuard** (`depradar repo-scan`): detect malware hidden inside repositories, their git history and open PRs. See the day-by-day plan in [ROADMAP.md](ROADMAP.md)
+- Additional RepoGuard detectors for Git history and pull requests. See the [roadmap](ROADMAP.md).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to pick up a module, and
 [open issues](https://github.com/DepRadarOrg/DepRadar/issues) for what's
@@ -348,3 +352,8 @@ Found a vulnerability in DepRadar itself? Please report it privately — see
 ## License
 
 DepRadar is released under the [MIT License](LICENSE).
+
+## Handsoff notes
+
+<!-- handsoff-issue-316 -->
+- #316: [repo-scan] Day 28: Fast scanning for large monorepos

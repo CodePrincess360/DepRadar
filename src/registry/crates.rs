@@ -5,8 +5,7 @@
 
 use serde::Deserialize;
 
-use crate::net::PoliteClient;
-use crate::registry::npm::RegistryError;
+use crate::net::{NetError, PoliteClient};
 
 /// Base URL for the crates.io API.
 const CRATES_IO_API: &str = "https://crates.io/api/v1/crates";
@@ -62,35 +61,26 @@ impl CrateMeta {
 }
 
 /// Fetches crate metadata for `name` using the default [`PoliteClient`].
-pub async fn fetch_crate_metadata(name: &str) -> Result<CrateMeta, RegistryError> {
-    let client = PoliteClient::new(1, "DepRadar", std::time::Duration::from_secs(30))
-        .map_err(|e| RegistryError::Network(e.to_string()))?;
-    fetch_crate_metadata_with(&client, name).await
+pub fn fetch_crate_metadata(name: &str) -> Result<CrateMeta, NetError> {
+    fetch_crate_metadata_with(&PoliteClient::default(), name)
 }
 
 /// Fetches crate metadata for `name` using the provided [`PoliteClient`].
-pub async fn fetch_crate_metadata_with(
-    client: &PoliteClient,
-    name: &str,
-) -> Result<CrateMeta, RegistryError> {
+pub fn fetch_crate_metadata_with(client: &PoliteClient, name: &str) -> Result<CrateMeta, NetError> {
     let url = format!("{CRATES_IO_API}/{name}");
-    fetch_crate_metadata_at(client, &url, name).await
+    fetch_crate_metadata_at(client, &url, name)
 }
 
 /// Fetches crate metadata for `name` from an explicit `url`.
 ///
 /// This is primarily useful for tests, which can point at a local fixture
 /// server.
-pub async fn fetch_crate_metadata_at(
+pub fn fetch_crate_metadata_at(
     client: &PoliteClient,
     url: &str,
     name: &str,
-) -> Result<CrateMeta, RegistryError> {
-    let body = client
-        .get(url, &[])
-        .await
-        .map_err(|e| RegistryError::Network(e.to_string()))?;
-    let response: CrateResponse = serde_json::from_str(&body)?;
+) -> Result<CrateMeta, NetError> {
+    let response: CrateResponse = client.get_json(url)?;
 
     Ok(CrateMeta {
         name: name.to_string(),

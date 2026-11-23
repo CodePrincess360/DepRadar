@@ -1,0 +1,1 @@
+// harmless fixture  DEPRADAR_DEFANGED_INDICATOR

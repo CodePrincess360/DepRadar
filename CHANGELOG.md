@@ -8,17 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This changelog is generated with [git-cliff](https://github.com/orhun/git-cliff)
 from [Conventional Commits](https://www.conventionalcommits.org/).
 
+See the [RepoGuard roadmap](https://github.com/DepRadarOrg/DepRadar/blob/main/ROADMAP.md)
+for the release plan behind these versions.
+
 ## [Unreleased]
 
 ### Added
 
 - Changelog and tagged releases with git-cliff (#152)
+- Release RepoGuard: tag a version, generate the changelog, and publish binaries (#317)
 
 ### Documentation
 
 - Add `cliff.toml` configuration for conventional commits
 - Add `CHANGELOG.md` generated from the full git history
 - Add release workflow on `v*` tags that creates a GitHub Release with the changelog section
+- Link the [RepoGuard roadmap](https://github.com/DepRadarOrg/DepRadar/blob/main/ROADMAP.md) from release notes
 
 <!--
 The sections below are populated by `git cliff -o CHANGELOG.md` once the
@@ -33,6 +38,3 @@ To preview the changelog for an upcoming release:
 
     git cliff --unreleased --tag vX.Y.Z --prepend CHANGELOG.md
 -->
-```
-
-Note: I cannot execute `git cliff` in this environment, so the file above is a hand-authored seed that matches the structure `cliff.toml` will produce. The maintainer should run `git cliff -o CHANGELOG.md` locally (or let the release workflow do it) to replace the `Unreleased` section with the fully generated history before merging, satisfying the acceptance criterion that the changelog covers all existing history.
