@@ -39,6 +39,7 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`package-lock-v1.json`](package-lock-v1.json) | `package-lock.json` v1 | not referenced by a test yet |
 | [`package-lock-v3.json`](package-lock-v3.json) | `package-lock.json` v3 | not referenced by a test yet |
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
+| [`non-registry/yarn.lock`](non-registry/yarn.lock) | `yarn.lock` v1 (one git and one `file:` dependency) | `tests/scan_lockfile.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
 | [`behavioral/leftpad-lite-v1/`](behavioral/leftpad-lite-v1) | unpacked npm package (clean) | `src/behavioral/diff.rs` |

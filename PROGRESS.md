@@ -10,6 +10,26 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Flag dependencies installed from git, URLs or local paths — #329
+
+- **What:** `Dependency` gains a `source` field holding the git URL, tarball
+  URL or `file:` path a package was installed from when that isn't the
+  registry. The parsers fill it from npm's URL `version` or `file:` `resolved`,
+  the Yarn v1 entry header (`pkg@git+https://…`, `pkg@file:…`), the pnpm
+  `resolution` block (`repo`/`commit`, `tarball`, `directory`), and Cargo's
+  `git+…` `source`. `scan_lockfile` reports each such package as a new
+  `FindingKind::NonRegistrySource`, rated **low** in `severity_of`, with an
+  issue-ref kind of `non-registry-source` and a matching SARIF rule.
+  `docs/severity.md` and `docs/issue-ref.md` document the new kind.
+- **Tests:** `git_and_file_dependencies_are_flagged_as_non_registry` in
+  `tests/scan_lockfile.rs` scans the new `tests/fixtures/non-registry/yarn.lock`
+  (one git and one `file:` dependency) and expects two findings; unit tests
+  cover the pnpm and Cargo sources. The `npm-basic` fixture's `file:` entry
+  is now flagged too, so the scan and SARIF tests that use it expect that
+  finding. Not run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #329
+
 ### Scanner — Report each package once across a monorepo scan — #330
 
 - **What:** `DirReport::findings()` in `src/pipeline.rs` groups identical

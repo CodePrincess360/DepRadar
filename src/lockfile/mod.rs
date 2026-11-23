@@ -66,6 +66,25 @@ pub fn detect(path: impl AsRef<Path>) -> Option<LockfileKind> {
     Some(kind)
 }
 
+/// True for npm-style dependency specs that bypass the registry: git URLs
+/// and hosted-git shorthands, tarball URLs, and local `file:` / `link:`
+/// paths.
+pub(crate) fn is_non_registry_spec(spec: &str) -> bool {
+    const PREFIXES: &[&str] = &[
+        "git+",
+        "git:",
+        "git@",
+        "github:",
+        "gitlab:",
+        "bitbucket:",
+        "file:",
+        "link:",
+        "http:",
+        "https:",
+    ];
+    PREFIXES.iter().any(|prefix| spec.starts_with(prefix))
+}
+
 /// The result of parsing one lockfile.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedLockfile {

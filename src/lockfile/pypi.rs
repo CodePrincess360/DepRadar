@@ -48,6 +48,7 @@ pub fn parse_pipfile_lock(contents: &str) -> Result<Vec<Dependency>, ParseError>
             direct: false,
             dev,
             path: Vec::new(),
+            source: None,
         })
         .collect())
 }
@@ -99,6 +100,7 @@ pub fn parse_requirements_with_warnings(
                 ecosystem: Ecosystem::PyPI,
                 direct: true,
                 dev: false,
+                source: None,
             });
         }
     }
@@ -218,6 +220,7 @@ pub fn parse_poetry_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> 
                 direct: false,
                 dev,
                 path: Vec::new(),
+                source: None,
             }
         })
         .collect())

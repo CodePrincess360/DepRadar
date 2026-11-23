@@ -385,6 +385,18 @@ pub fn scan_lockfile(path: impl AsRef<Path>, opts: &ScanOptions<'_>) -> Result<R
         finish_stage("license");
     }
 
+    // Git, tarball-URL and local-path installs skip registry-side checks.
+    for dependency in &packages {
+        if let Some(source) = &dependency.source {
+            findings.push(finding(
+                dependency,
+                FindingKind::NonRegistrySource {
+                    source: source.clone(),
+                },
+            ));
+        }
+    }
+
     let mut warnings = parsed.warnings;
     let mut suppressed = Vec::new();
     if let Some(ignore) = opts.ignore {
