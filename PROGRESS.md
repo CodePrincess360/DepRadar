@@ -10,6 +10,21 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — Yarn Berry (v2+) yarn.lock parser — #326
+
+- **What:** `parse_yarn_lock` in [`yarn.rs`](src/lockfile/yarn.rs) now
+  recognises a Berry lockfile by its top-level `__metadata` key and parses it
+  as YAML. Each entry's `resolution` (`name@npm:1.2.3`) gives the package name
+  and version, including scoped names; `workspace:` entries and other
+  protocols (`patch:`, `link:`, ...) are skipped. v1 lockfiles are parsed as
+  before, and both go through `yarn.lock` detection.
+- **Tests:** Unit tests over the new `tests/fixtures/yarn-berry/yarn.lock`
+  fixture, and a `parse_file` test over the v1 and Berry fixtures. Not run in
+  this change.
+- **By:** cyber-punk112
+- **Closes:** #326
+- **Status:** In review.
+
 ### scanner — gradle.lockfile parser — #325
 
 - **What:** Adds `parse_gradle_lockfile` in [`gradle.rs`](src/lockfile/gradle.rs),

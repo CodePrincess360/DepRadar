@@ -8,7 +8,7 @@
 //! - [`npm`] — `package.json`
 //! - [`pnpm`] — `pnpm-lock.yaml` (v6 and v9)
 //! - [`pypi`] — `Pipfile.lock`
-//! - [`yarn`] — `yarn.lock` (v1)
+//! - [`yarn`] — `yarn.lock` (v1 and Berry)
 //!
 //! [`detect`] works out which format a file is from its name, and
 //! [`parse_file`] reads a file and dispatches it to the matching parser.
@@ -306,6 +306,19 @@ mod tests {
 
         let package_json = parse_file(repo_path("tests/fixtures/package.json")).unwrap();
         assert!(package_json.iter().any(|d| d.name == "express"));
+    }
+
+    #[test]
+    fn parse_file_reads_yarn_v1_and_berry_lockfiles() {
+        for fixture in [
+            "tests/fixtures/yarn.lock",
+            "tests/fixtures/yarn-berry/yarn.lock",
+        ] {
+            let path = repo_path(fixture);
+            assert_eq!(detect(&path), Some(LockfileKind::YarnLock));
+            let deps = parse_file(&path).unwrap();
+            assert!(deps.iter().any(|d| d.name == "lodash"), "{fixture}");
+        }
     }
 
     #[test]
