@@ -10,12 +10,82 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Docs — Contract error codes reference — #449
+
+- **What:** Adds [`docs/contract-errors.md`](docs/contract-errors.md) mapping every Soroban contract error code from `contracts/deprader_router/src/lib.rs` to its enum variant, triggering methods, failure conditions, and remediation guidance.
+- **Verified:** Every error code, variant name, and condition cross-referenced against `contracts/deprader_router/src/lib.rs`.
+- **By:** genda-benjamin
+- **Closes:** #449
+
 ### Docs — Module README for `src/behavioral/` — #454
 
 - **What:** Adds [`src/behavioral/README.md`](src/behavioral/README.md) documenting each behavioral detector (`scripts`, `network`, `setup_py`, `binaries`, `obfuscation`, `diff`, `tarball`), detailing its analyzed files, heuristic weights/signals, and severity levels consistent with `docs/severity.md`.
 - **Verified:** Every detector description, heuristic weight, constant, and link was verified against `src/behavioral/*.rs` and `docs/severity.md`.
 - **By:** genda-benjamin
 - **Closes:** #454
+
+### scanner — composer.lock parser — #323
+
+- **What:** Adds `parse_composer_lock` in [`composer.rs`](src/lockfile/composer.rs),
+  registered in `lockfile::detect` for `composer.lock` and dispatched from
+  `parse_file` and `parse_lockfile` with ecosystem `Packagist`. Entries in
+  `packages` and `packages-dev` are returned with their pinned versions, the
+  latter with `dev: true`; `direct` is `false` because the format doesn't
+  record it. Malformed JSON fails with `ParseError::Json`.
+- **Tests:** Unit tests over the new `tests/fixtures/composer-basic/composer.lock`
+  fixture (names, versions, `direct`/`dev` flags) and invalid input. Not run
+  in this change.
+- **By:** cyber-punk112
+- **Closes:** #323
+- **Status:** In review.
+
+### scanner — go.sum parser — #324
+
+- **What:** Adds `parse_go_sum` in [`go.rs`](src/lockfile/go.rs), registered
+  in `lockfile::detect` for `go.sum` and dispatched from `parse_file` and
+  `parse_lockfile` with ecosystem `Go`. Each `module version hash` line with a
+  plain version becomes a dependency (each pair once); `version/go.mod` lines,
+  which only checksum a module's `go.mod`, are skipped. `direct` and `dev` are
+  `false` because the format doesn't record them. Lines with any other shape
+  fail with `ParseError::Malformed`.
+- **Tests:** Unit tests over the new `tests/fixtures/go-basic/go.sum` fixture
+  (names, versions, `direct`/`dev` flags) and malformed lines. Not run in this
+  change.
+- **By:** cyber-punk112
+- **Closes:** #324
+- **Status:** In review.
+
+### scanner — Yarn Berry (v2+) yarn.lock parser — #326
+
+- **What:** `parse_yarn_lock` in [`yarn.rs`](src/lockfile/yarn.rs) now
+  recognises a Berry lockfile by its top-level `__metadata` key and parses it
+  as YAML. Each entry's `resolution` (`name@npm:1.2.3`) gives the package name
+  and version, including scoped names; `workspace:` entries and other
+  protocols (`patch:`, `link:`, ...) are skipped. v1 lockfiles are parsed as
+  before, and both go through `yarn.lock` detection.
+- **Tests:** Unit tests over the new `tests/fixtures/yarn-berry/yarn.lock`
+  fixture, and a `parse_file` test over the v1 and Berry fixtures. Not run in
+  this change.
+- **By:** cyber-punk112
+- **Closes:** #326
+- **Status:** In review.
+
+### scanner — gradle.lockfile parser — #325
+
+- **What:** Adds `parse_gradle_lockfile` in [`gradle.rs`](src/lockfile/gradle.rs),
+  registered in `lockfile::detect` for `gradle.lockfile` and dispatched from
+  `parse_file` and `parse_lockfile` with ecosystem `Maven`. Each
+  `group:artifact:version=configurations` line becomes a `group:artifact`
+  dependency; comments and the `empty=` line are skipped. `dev` is set when
+  every configuration is a test one; `direct` is `false` because the format
+  doesn't record it. Lines with any other shape fail with the new
+  `ParseError::Malformed`.
+- **Tests:** Unit tests over the new `tests/fixtures/gradle-basic/gradle.lockfile`
+  fixture (names, versions, `direct`/`dev` flags) and malformed lines. Not run
+  in this change.
+- **By:** cyber-punk112
+- **Closes:** #325
+- **Status:** In review.
 
 ### scanner — Gemfile.lock parser — #322
 
@@ -82,6 +152,7 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
   malformed input). Not run in this change.
 - **By:** elmuby
 - **Closes:** #319
+- **Status:** In review.
 - **Status:** In review.
 
 ### Frontend — Manual light/dark theme toggle — #135

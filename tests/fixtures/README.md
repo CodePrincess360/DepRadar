@@ -45,6 +45,10 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`uv.lock`](uv.lock) | `uv.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
 | [`pdm.lock`](pdm.lock) | `pdm.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
 | [`Gemfile.lock`](Gemfile.lock) | `Gemfile.lock` | `src/lockfile/ruby.rs`, `tests/lockfile.rs` |
+| [`composer-basic/composer.lock`](composer-basic/composer.lock) | `composer.lock` | `src/lockfile/composer.rs` |
+| [`go-basic/go.sum`](go-basic/go.sum) | `go.sum` | `src/lockfile/go.rs` |
+| [`yarn-berry/yarn.lock`](yarn-berry/yarn.lock) | `yarn.lock` (Berry) | `src/lockfile/mod.rs`, `src/lockfile/yarn.rs` |
+| [`gradle-basic/gradle.lockfile`](gradle-basic/gradle.lockfile) | `gradle.lockfile` | `src/lockfile/gradle.rs` |
 | [`behavioral/leftpad-lite-v1/`](behavioral/leftpad-lite-v1) | unpacked npm package (clean) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-v2/`](behavioral/leftpad-lite-v2) | unpacked PyPI sdist (adds a malicious `setup.py`) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-docs/`](behavioral/leftpad-lite-docs) | `leftpad-lite-v1` + `CHANGELOG.md` | `src/behavioral/diff.rs` |
