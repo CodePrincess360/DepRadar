@@ -10,6 +10,20 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Scan only lockfiles changed since a git ref — #333
+
+- **What:** `depradar scan <dir> --changed-since <git-ref>` scans only the
+  lockfiles that `git diff --name-only <git-ref>` lists, so CI on a large
+  monorepo checks just the lockfiles a PR touched. The library side is
+  `pipeline::scan_dir_changed_since` and `pipeline::changed_files`;
+  unchanged lockfiles are skipped before they are parsed or sent to OSV. An
+  unknown ref is an error rather than an empty scan.
+- **Tests:** `scan_dir_changed_since_scans_only_changed_lockfiles` in
+  `tests/scan_dir.rs` builds a temp git repo with two lockfiles, changes one,
+  and checks that only that one is scanned. Not run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #333
+
 ### Frontend — Manual light/dark theme toggle — #135
 
 - **What:** A System / Light / Dark toggle in the header

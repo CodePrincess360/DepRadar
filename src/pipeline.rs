@@ -4,13 +4,14 @@
 //! collect the results into one [`Report`]. [`scan_dir`] does the same for
 //! every lockfile in a directory tree, such as a monorepo.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::io;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{Duration, Instant};
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -479,7 +480,51 @@ impl fmt::Display for DirReport {
 /// this supports exactly the formats a single-file scan does. Fails only if
 /// `root` itself can't be read.
 pub fn scan_dir(root: impl AsRef<Path>, opts: &ScanOptions<'_>) -> io::Result<DirReport> {
+    scan_tree(root.as_ref(), opts, None)
+}
+
+/// Like [`scan_dir`], but only scans the lockfiles that differ from
+/// `git_ref` (see [`changed_files`]), so CI on a large monorepo checks just
+/// the lockfiles a PR touched. Fails if `git diff` can't be run.
+pub fn scan_dir_changed_since(
+    root: impl AsRef<Path>,
+    opts: &ScanOptions<'_>,
+    git_ref: &str,
+) -> io::Result<DirReport> {
     let root = root.as_ref();
+    let changed = changed_files(root, git_ref)?;
+    scan_tree(root, opts, Some(&changed))
+}
+
+/// Files under `root` that differ from `git_ref`, as listed by
+/// `git diff --name-only <git_ref>` run in `root`. Paths are relative to
+/// `root`.
+pub fn changed_files(root: &Path, git_ref: &str) -> io::Result<HashSet<PathBuf>> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["diff", "--name-only", "--relative", git_ref, "--"])
+        .output()?;
+    if !output.status.success() {
+        return Err(io::Error::other(format!(
+            "git diff --name-only {git_ref} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(PathBuf::from)
+        .collect())
+}
+
+/// Walks `root` like [`scan_dir`]. When `only` is set, files whose path
+/// relative to `root` isn't in it are skipped without being scanned.
+fn scan_tree(
+    root: &Path,
+    opts: &ScanOptions<'_>,
+    only: Option<&HashSet<PathBuf>>,
+) -> io::Result<DirReport> {
     let mut lockfiles = Vec::new();
     let mut errors = Vec::new();
     let mut pending = vec![root.to_path_buf()];
@@ -507,6 +552,9 @@ pub fn scan_dir(root: impl AsRef<Path>, opts: &ScanOptions<'_>) -> io::Result<Di
             }
 
             let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
+            if only.is_some_and(|only| !only.contains(&relative)) {
+                continue;
+            }
             match scan_lockfile(&path, opts) {
                 Ok(mut report) => {
                     report.path = relative;

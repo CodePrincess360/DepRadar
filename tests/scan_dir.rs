@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use deprader::pipeline::{scan_dir, ScanOptions};
+use deprader::pipeline::{scan_dir, scan_dir_changed_since, ScanOptions};
 
 /// A fresh directory under the system temp dir, removed on drop.
 struct TempDir(PathBuf);
@@ -128,4 +128,42 @@ fn scan_dir_reports_a_malformed_lockfile_and_keeps_going() {
 fn scan_dir_fails_when_the_root_is_missing() {
     let tree = TempDir::new();
     assert!(scan_dir(tree.0.join("missing"), &offline()).is_err());
+}
+
+/// Runs `git` in `dir`, panicking if it fails.
+fn git(dir: &Path, args: &[&str]) {
+    let status = process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["-c", "user.name=DepRadar"])
+        .args(["-c", "user.email=depradar@example.com"])
+        .args(["-c", "commit.gpgsign=false"])
+        .args(args)
+        .status()
+        .unwrap();
+    assert!(status.success(), "git {args:?} failed");
+}
+
+#[test]
+fn scan_dir_changed_since_scans_only_changed_lockfiles() {
+    let tree = TempDir::new();
+    tree.write("apps/web/package-lock.json", WEB_LOCK);
+    tree.write("services/api/requirements.txt", "requests==2.31.0\n");
+    git(&tree.0, &["init", "-q"]);
+    git(&tree.0, &["add", "."]);
+    git(&tree.0, &["commit", "-q", "-m", "initial"]);
+
+    tree.write(
+        "services/api/requirements.txt",
+        "requests==2.31.0\nflask==3.0.0\n",
+    );
+
+    let report = scan_dir_changed_since(&tree.0, &offline(), "HEAD").unwrap();
+
+    let paths: Vec<&Path> = report.lockfiles.iter().map(|r| r.path.as_path()).collect();
+    assert_eq!(paths, [Path::new("services/api/requirements.txt")]);
+    assert_eq!(report.lockfiles[0].summary.packages, 2);
+
+    // Against an unknown ref the scan fails instead of silently scanning nothing.
+    assert!(scan_dir_changed_since(&tree.0, &offline(), "no-such-ref").is_err());
 }

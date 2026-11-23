@@ -15,8 +15,8 @@ use deprader::config::{load_project_config, ConfigFormat, FailOn, ProjectConfig}
 use deprader::ignore::{IgnoreFile, Suppressed, IGNORE_FILE_NAME};
 use deprader::model::{Ecosystem, Finding, FindingKind};
 use deprader::pipeline::{
-    scan_dir, scan_lockfile, watch_packages, DirReport, FakeCrawler as WatchFakeCrawler, Report,
-    ScanOptions,
+    scan_dir, scan_dir_changed_since, scan_lockfile, watch_packages, DirReport,
+    FakeCrawler as WatchFakeCrawler, Report, ScanOptions,
 };
 use deprader::report::{severity_of, AdvisorySeverities, Severity};
 use deprader::typosquat::scanner::{score_package, ScanResult};
@@ -87,6 +87,10 @@ enum Command {
         /// `ecosystems` in `depradar.toml`.
         #[arg(long = "ecosystem", value_name = "ECOSYSTEM")]
         ecosystems: Vec<String>,
+        /// Only scan lockfiles changed since this git ref, as listed by
+        /// `git diff --name-only <GIT_REF>` (directory scans only)
+        #[arg(long, value_name = "GIT_REF")]
+        changed_since: Option<String>,
     },
     /// Show details for a single advisory (summary, severity, affected
     /// ranges, fixed version and references)
@@ -255,7 +259,12 @@ fn main() -> ExitCode {
 
     match cli.command {
         Command::Name { package } => run_name(&package, cli.format),
-        Command::Scan { path, offline } => match scan(&path, offline, cli.quiet) {
+        Command::Scan {
+            path,
+            offline,
+            changed_since,
+            ..
+        } => match scan(&path, offline, cli.quiet, changed_since.as_deref()) {
             Ok(scanned) => {
                 match (cli.format, &scanned) {
                     (Format::Text, Scanned::File(report)) => println!("{report}"),
@@ -455,7 +464,12 @@ fn glob_match_inner(pattern: &[u8], text: &[u8]) -> bool {
 /// Scans `path` as a single lockfile or, for a directory, every lockfile
 /// under it, honouring a `.depradarignore` next to the lockfile (or at the
 /// directory's root).
-fn scan(path: &Path, offline: bool, quiet: bool) -> Result<Scanned, String> {
+fn scan(
+    path: &Path,
+    offline: bool,
+    quiet: bool,
+    changed_since: Option<&str>,
+) -> Result<Scanned, String> {
     let ignore_dir = if path.is_dir() {
         path
     } else {
@@ -490,8 +504,11 @@ fn scan(path: &Path, offline: bool, quiet: bool) -> Result<Scanned, String> {
     }
 
     if path.is_dir() {
-        let mut report =
-            scan_dir(path, &opts).map_err(|err| format!("{}: {err}", path.display()))?;
+        let mut report = match changed_since {
+            Some(git_ref) => scan_dir_changed_since(path, &opts, git_ref),
+            None => scan_dir(path, &opts),
+        }
+        .map_err(|err| format!("{}: {err}", path.display()))?;
         // Filter out lockfiles that match an exclude pattern.
         if !exclude.is_empty() {
             report.lockfiles.retain(|r| !is_excluded(&r.path, exclude));
