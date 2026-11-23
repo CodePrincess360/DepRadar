@@ -180,6 +180,7 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::GoSum => go::parse_go_sum,
         LockfileKind::ComposerLock => composer::parse_composer_lock,
         LockfileKind::Requirements | LockfileKind::PackageLock => {
+            // Invariant: Handled above via early returns before this dispatch block.
             unreachable!("handled above")
         }
     };
