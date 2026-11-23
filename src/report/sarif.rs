@@ -13,7 +13,7 @@
 
 use serde_json::{json, Value};
 
-use super::{label, severity_of, AdvisorySeverities, Severity};
+use super::{is_malicious, label, severity_of, AdvisorySeverities, Severity};
 use crate::model::{Finding, FindingKind};
 use crate::pipeline::Report;
 
@@ -154,6 +154,7 @@ fn result(
         FindingKind::Vulnerability { advisory_id } => advisory_id.as_str(),
         _ => "",
     };
+    let malicious = is_malicious(finding);
     let fingerprint = format!(
         "{}:{}:{}@{}:{advisory}",
         RULES[index].id,
@@ -161,6 +162,10 @@ fn result(
         finding.package,
         finding.version.as_deref().unwrap_or("")
     );
+    let mut tags = vec!["security", "supply-chain"];
+    if malicious {
+        tags.push("malware");
+    }
 
     json!({
         "ruleId": RULES[index].id,
@@ -181,6 +186,8 @@ fn result(
             "direct": finding.direct,
             "severity": label(severity),
             "security-severity": security_severity(severity),
+            "malicious": malicious,
+            "tags": tags,
         },
     })
 }
@@ -232,5 +239,35 @@ mod tests {
         assert_eq!(level(Severity::High), "error");
         assert_eq!(level(Severity::Medium), "warning");
         assert_eq!(level(Severity::Low), "note");
+    }
+
+    #[test]
+    fn renders_malicious_advisory_as_critical_error() {
+        use crate::model::{Ecosystem, Finding};
+        use std::path::PathBuf;
+
+        let finding = Finding {
+            kind: FindingKind::Vulnerability {
+                advisory_id: "MAL-2024-1234".to_string(),
+            },
+            ecosystem: Ecosystem::Npm,
+            package: "evil-pkg".to_string(),
+            version: Some("1.0.0".to_string()),
+            direct: true,
+        };
+        let report = Report {
+            path: PathBuf::from("package-lock.json"),
+            findings: vec![finding],
+        };
+        let sarif = to_sarif(&report, &AdvisorySeverities::default(), None);
+        let result = &sarif["runs"][0]["results"][0];
+        assert_eq!(result["level"], "error");
+        assert_eq!(result["properties"]["severity"], "critical");
+        assert_eq!(result["properties"]["malicious"], true);
+        assert!(result["properties"]["tags"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tag| tag == "malware"));
     }
 }

@@ -12,7 +12,7 @@ use std::fmt::Write;
 
 use owo_colors::OwoColorize;
 
-use super::{label, severity_of, AdvisorySeverities, Severity};
+use super::{is_malicious, label, severity_of, AdvisorySeverities, Severity};
 use crate::pipeline::{Report, StageTiming};
 
 /// The `--color` setting.
@@ -70,6 +70,16 @@ fn tag(severity: Severity, color: bool) -> String {
     }
 }
 
+/// The `malicious package` label for `MAL-` advisories, colored if asked.
+fn malware_label(color: bool) -> String {
+    let text = "malicious package".to_string();
+    if color {
+        text.red().bold().to_string()
+    } else {
+        text
+    }
+}
+
 /// Renders `report` for the terminal.
 pub fn render(report: &Report, advisories: &AdvisorySeverities, opts: &TextOptions) -> String {
     let mut out = String::new();
@@ -87,7 +97,11 @@ fn write_report(
     if opts.verbosity == Verbosity::Quiet {
         for finding in &report.findings {
             let severity = severity_of(finding, advisories);
-            writeln!(out, "{} {finding}", tag(severity, opts.color))?;
+            write!(out, "{} {finding}", tag(severity, opts.color))?;
+            if is_malicious(finding) {
+                write!(out, " [{}]", malware_label(opts.color))?;
+            }
+            writeln!(out)?;
         }
         return writeln!(out, "{}", summary_line(report));
     }
@@ -127,7 +141,11 @@ fn write_report(
         writeln!(out, "\nFindings ({}):", report.findings.len())?;
         for finding in &report.findings {
             let severity = severity_of(finding, advisories);
-            writeln!(out, "  - {} {finding}", tag(severity, opts.color))?;
+            write!(out, "  - {} {finding}", tag(severity, opts.color))?;
+            if is_malicious(finding) {
+                write!(out, " [{}]", malware_label(opts.color))?;
+            }
+            writeln!(out)?;
         }
     }
 
@@ -233,5 +251,47 @@ mod tests {
             elapsed: std::time::Duration::from_micros(1_240),
         };
         assert_eq!(format_timing(&timing), "parse: 1.2 ms");
+    }
+
+    #[test]
+    fn malware_label_is_plain_without_color() {
+        assert_eq!(malware_label(false), "malicious package");
+        assert!(malware_label(true).contains('\u{1b}'));
+    }
+
+    #[test]
+    fn mal_finding_renders_critical_with_malware_label() {
+        use crate::cve::Finding;
+        use crate::pipeline::{Report, Summary};
+
+        let finding = Finding {
+            package: "evil-crate".to_string(),
+            version: Some("1.0.0".to_string()),
+            advisory: "MAL-2024-1234".to_string(),
+            summary: "Malicious package".to_string(),
+            severity: None,
+        };
+        let report = Report {
+            path: std::path::PathBuf::from("Cargo.lock"),
+            findings: vec![finding],
+            suppressed: Vec::new(),
+            warnings: Vec::new(),
+            dependencies: Vec::new(),
+            timings: Vec::new(),
+            summary: Summary {
+                packages: 1,
+                queried: 1,
+                vulnerabilities: 1,
+                ..Summary::default()
+            },
+        };
+        let advisories = AdvisorySeverities::default();
+        let opts = TextOptions {
+            color: false,
+            verbosity: Verbosity::Normal,
+        };
+        let rendered = render(&report, &advisories, &opts);
+        assert!(rendered.contains("[CRITICAL]"), "{rendered}");
+        assert!(rendered.contains("malicious package"), "{rendered}");
     }
 }

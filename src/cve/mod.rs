@@ -11,3 +11,12 @@ pub mod remediation;
 pub mod severity;
 
 pub use osv_client::{fetch_vuln, OsvVulnerability};
+
+/// Label used to mark OSV `MAL-` advisories as malicious-package findings.
+pub const MALICIOUS_PACKAGE_LABEL: &str = "malicious package";
+
+/// Returns `true` when the given OSV advisory ID denotes a known-malware
+/// (`MAL-`) advisory rather than an ordinary vulnerability.
+pub fn is_malicious_advisory(id: &str) -> bool {
+    id.starts_with("MAL-")
+}
