@@ -1,0 +1,4 @@
+# Two unpinned requirements and one exact pin.
+requests>=2
+flask
+urllib3==1.26.5
