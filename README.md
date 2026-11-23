@@ -355,6 +355,18 @@ DepRadar is released under the [MIT License](LICENSE).
 
 ## Handsoff notes
 
+<!-- handsoff-issue-299 -->
+- #299: [repo-scan] Day 11: Commit signing report
+
+<!-- handsoff-issue-300 -->
+- #300: [repo-scan] Day 12: `--all-refs` and `--prs`
+
+<!-- handsoff-issue-301 -->
+- #301: [repo-scan] Day 13: Known-malicious packages in lockfiles
+
+<!-- handsoff-issue-302 -->
+- #302: [repo-scan] Day 14: `repo-scan --baseline`
+
 <!-- handsoff-issue-304 -->
 - #304: [repo-scan] Day 16: PR mode: scan only what a PR changes
 
