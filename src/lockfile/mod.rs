@@ -4,6 +4,7 @@
 //! [`Dependency`] values:
 //!
 //! - [`cargo`] — `Cargo.lock`
+//! - [`go`] — `go.sum`
 //! - [`gradle`] — `gradle.lockfile`
 //! - [`npm`] — `package.json`
 //! - [`pnpm`] — `pnpm-lock.yaml` (v6 and v9)
@@ -21,6 +22,7 @@ use std::path::{Path, PathBuf};
 use crate::model::Dependency;
 
 pub mod cargo;
+pub mod go;
 pub mod gradle;
 pub mod npm;
 pub mod pnpm;
@@ -48,6 +50,8 @@ pub enum LockfileKind {
     PackageJson,
     /// Gradle `gradle.lockfile`.
     GradleLock,
+    /// Go modules `go.sum`.
+    GoSum,
 }
 
 /// Works out a file's [`LockfileKind`] from its file name, ignoring the
@@ -63,6 +67,7 @@ pub fn detect(path: impl AsRef<Path>) -> Option<LockfileKind> {
         "Cargo.lock" => LockfileKind::CargoLock,
         "package.json" => LockfileKind::PackageJson,
         "gradle.lockfile" => LockfileKind::GradleLock,
+        "go.sum" => LockfileKind::GoSum,
         name if name.starts_with("requirements") && name.ends_with(".txt") => {
             LockfileKind::Requirements
         }
@@ -147,6 +152,7 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::PnpmLock => pnpm::parse_pnpm_lock,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
         LockfileKind::GradleLock => gradle::parse_gradle_lockfile,
+        LockfileKind::GoSum => go::parse_go_sum,
         LockfileKind::Requirements | LockfileKind::PackageLock => {
             unreachable!("handled above")
         }
@@ -156,6 +162,7 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::PipfileLock | LockfileKind::PoetryLock => Ecosystem::PyPI,
         LockfileKind::CargoLock => Ecosystem::CratesIo,
         LockfileKind::GradleLock => Ecosystem::Maven,
+        LockfileKind::GoSum => Ecosystem::Go,
         _ => Ecosystem::Npm,
     };
     Ok(ParsedLockfile {
@@ -184,6 +191,7 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Dependency>, ParseError>
         LockfileKind::Requirements => pypi::parse_requirements,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
         LockfileKind::GradleLock => gradle::parse_gradle_lockfile,
+        LockfileKind::GoSum => go::parse_go_sum,
         LockfileKind::PackageLock => return Err(ParseError::Unsupported(kind)),
     };
     parse(&fs::read_to_string(path)?)
@@ -284,6 +292,7 @@ mod tests {
             ("Cargo.lock", Some(LockfileKind::CargoLock)),
             ("package.json", Some(LockfileKind::PackageJson)),
             ("gradle.lockfile", Some(LockfileKind::GradleLock)),
+            ("go.sum", Some(LockfileKind::GoSum)),
             ("some/project/Cargo.lock", Some(LockfileKind::CargoLock)),
             ("Gemfile.lock", None),
             ("requirements.in", None),

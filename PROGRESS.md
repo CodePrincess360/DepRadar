@@ -10,6 +10,22 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — go.sum parser — #324
+
+- **What:** Adds `parse_go_sum` in [`go.rs`](src/lockfile/go.rs), registered
+  in `lockfile::detect` for `go.sum` and dispatched from `parse_file` and
+  `parse_lockfile` with ecosystem `Go`. Each `module version hash` line with a
+  plain version becomes a dependency (each pair once); `version/go.mod` lines,
+  which only checksum a module's `go.mod`, are skipped. `direct` and `dev` are
+  `false` because the format doesn't record them. Lines with any other shape
+  fail with `ParseError::Malformed`.
+- **Tests:** Unit tests over the new `tests/fixtures/go-basic/go.sum` fixture
+  (names, versions, `direct`/`dev` flags) and malformed lines. Not run in this
+  change.
+- **By:** cyber-punk112
+- **Closes:** #324
+- **Status:** In review.
+
 ### scanner — Yarn Berry (v2+) yarn.lock parser — #326
 
 - **What:** `parse_yarn_lock` in [`yarn.rs`](src/lockfile/yarn.rs) now
