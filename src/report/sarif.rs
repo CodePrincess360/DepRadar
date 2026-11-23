@@ -31,7 +31,7 @@ struct Rule {
     default_severity: Severity,
 }
 
-const RULES: [Rule; 2] = [
+const RULES: [Rule; 4] = [
     Rule {
         id: "typosquat",
         name: "Typosquat",
@@ -49,12 +49,28 @@ const RULES: [Rule; 2] = [
                pinned in the lockfile.",
         default_severity: Severity::High,
     },
+    Rule {
+        id: "deprecated",
+        name: "DeprecatedDependency",
+        short: "Dependency version is deprecated or yanked",
+        full: "The package registry flagged this version.",
+        default_severity: Severity::Low,
+    },
+    Rule {
+        id: "license",
+        name: "LicensePolicy",
+        short: "Dependency license is outside the allowlist",
+        full: "The package license is outside the configured policy.",
+        default_severity: Severity::Low,
+    },
 ];
 
 fn rule_index(kind: &FindingKind) -> usize {
     match kind {
         FindingKind::Typosquat { .. } => 0,
         FindingKind::Vulnerability { .. } => 1,
+        FindingKind::Deprecated { .. } => 2,
+        FindingKind::License { .. } => 3,
     }
 }
 
@@ -136,7 +152,7 @@ fn result(
         .unwrap_or(1);
     let advisory = match &finding.kind {
         FindingKind::Vulnerability { advisory_id } => advisory_id.as_str(),
-        FindingKind::Typosquat { .. } => "",
+        _ => "",
     };
     let fingerprint = format!(
         "{}:{}:{}@{}:{advisory}",

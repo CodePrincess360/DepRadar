@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { AddressLink, ErrorState, StatusBadge } from "./ui";
 
@@ -31,14 +32,14 @@ describe("AddressLink", () => {
   const ADDRESS = "GCFFP6RU6C3JOZBIUNZN2ELJAITUZ3HWEOUUCFXIAHE6M2GHVHZB4D6A";
 
   it("renders no copy button by default", () => {
-    render(<AddressLink address={ADDRESS} />);
+    render(<MemoryRouter><AddressLink address={ADDRESS} /></MemoryRouter>);
     expect(screen.queryByRole("button", { name: "Copy address" })).toBeNull();
   });
 
   it("copies the full address with the copy option", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    render(<AddressLink address={ADDRESS} copy />);
+    render(<MemoryRouter><AddressLink address={ADDRESS} copy /></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
     expect(writeText).toHaveBeenCalledWith(ADDRESS);
     expect(await screen.findByText("Copied")).toBeInTheDocument();
