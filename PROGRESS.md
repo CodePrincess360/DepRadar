@@ -10,6 +10,19 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Detect `npm-shrinkwrap.json` — #328
+
+- **What:** `lockfile::detect` maps `npm-shrinkwrap.json` to
+  `LockfileKind::PackageLock`, since it uses the `package-lock.json` format,
+  so it is recognised everywhere `detect` is used.
+- **Tests:** a `npm-shrinkwrap.json` case in `detects_every_supported_file_name`
+  (`src/lockfile/mod.rs`), and `scan_dir_scans_npm_shrinkwrap` in
+  `tests/cli.rs`, which runs `depradar scan` over the new
+  `tests/fixtures/npm-shrinkwrap/` fixture and expects its typosquat. Not run
+  yet.
+- **By:** cyfer-codes
+- **Closes:** #328
+
 ### Typosquat — RubyGems popular-package dataset — #334
 
 - **What:** `data/popular-packages/rubygems-top1000.json` holds the 1000

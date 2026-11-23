@@ -101,6 +101,29 @@ fn scan_dir_json_groups_findings_by_lockfile() {
 }
 
 #[test]
+fn scan_dir_scans_npm_shrinkwrap() {
+    let output = depradar()
+        .args(["scan", "--offline", "--format", "json"])
+        .arg(fixture("npm-shrinkwrap"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+
+    let json = stdout_json(&output);
+    let lockfiles = json["lockfiles"].as_array().unwrap();
+    assert_eq!(lockfiles.len(), 1);
+    assert_eq!(lockfiles[0]["path"], "npm-shrinkwrap.json");
+    assert_eq!(lockfiles[0]["ecosystem"], "npm");
+    let findings = lockfiles[0]["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .any(|f| f["package"] == "expresss" && f["kind"] == "typosquat"),
+        "{findings:?}"
+    );
+}
+
+#[test]
 fn scan_file_text_reports_findings() {
     let output = depradar()
         .args(["scan", "--offline"])
