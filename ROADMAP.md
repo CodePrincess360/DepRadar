@@ -86,16 +86,45 @@ paid on-chain.
 | 27 | Rule contribution kit: rule format docs, fixture template and a test harness, so each new campaign becomes a Wave issue | A new rule needs only a data file plus fixtures, no Rust |
 | 28 | Performance: parallel walking and caching so a 50k-file monorepo scans in under 10 seconds | Benchmark added under `benches/` |
 | 29 | Release: tag a version with RepoGuard, generate a changelog (#152), and publish binaries via the existing release pipeline | Release notes link this roadmap |
-| 30 | Retrospective and next roadmap: false-positive review, contributor feedback, and Phase 5 planning | `ROADMAP.md` updated |
+| 30 | Retrospective and next roadmap: false-positive review, contributor feedback, and the Phase 5 plan | This document gains a Phase 5 section and a per-rule false-positive summary |
 
-## How to contribute
+## Phase 5: From scanner to shared signal (days 31–37)
 
-Each day above becomes a GitHub issue labelled `roadmap` and `repo-scan`,
-with the "Done when" column as its acceptance criteria. Pick one up the
-usual way (see [CONTRIBUTING.md](CONTRIBUTING.md)) and add a
-[PROGRESS.md](PROGRESS.md) entry when it lands. Issues build on each other
-within a phase, so check the previous day has merged first.
+Phase 4 shipped RepoGuard as a scanner the ecosystem can run. Phase 5 turns
+it into a shared signal: rules, findings and fixes flow between maintainers,
+contributors and the Bounty Router without anyone re-implementing the
+detectors.
 
-Found a real infected repository while testing? **Don't open a public
-issue.** Follow [SECURITY.md](SECURITY.md) so the maintainers can clean up
-before attackers notice.
+| Day | Change | Done when |
+|---|---|---|
+| 31 | False-positive triage loop: every finding carries a stable rule id and a `--report-fp` command that files a defanged fixture upstream | A reported false positive becomes a failing negative fixture in the rule's test suite |
+| 32 | Rule severity tuning from the Day 30 retrospective: promote high-precision rules, demote noisy ones, and document the thresholds per rule | `data/ioc/` rules carry a `precision` field backed by the fixture suite |
+| 33 | Cross-repo correlation: group identical findings across an `org-scan` sweep so one campaign shows up as one incident | A sweep of the Drips Wave list collapses duplicate findings into a single incident |
+| 34 | Fix suggestions: for each Phase 1 rule, emit a remediation snippet (remove the hook, pin the script, delete the disguised file) in text and SARIF | SARIF output includes `fixes` for the top rules |
+| 35 | Maintainer dashboard for the disclosure flow (extends #142 and Day 20) | Maintainers see embargoed findings and acknowledge them |
+| 36 | Bounty Router integration hardening: batch confirmed findings into a single on-chain attestation with per-finding `proof_ref` | End-to-end on testnet with more than one finding |
+| 37 | Phase 5 release and public retrospective: publish the false-positive rates, the contributor feedback summary and the next roadmap | Release notes link this roadmap and the retrospective |
+
+## Retrospective: false-positive review (Day 30)
+
+False-positive rates are measured against the fixture suite plus a scan of
+the 20 most common real config files and the Drips Wave repository list.
+Rates are per rule; a rule above 5% is a candidate for demotion in Day 32.
+
+| Rule | Phase | False-positive rate | Notes |
+|---|---|---|---|
+| IOC markers (`data/ioc/`) | 1 | ~0% | Exact markers only; no heuristic matching |
+| Whitespace padding | 1 | ~2% | Long generated config lines need the `dist/` exclusion |
+| Obfuscation (source thresholds) | 1 | ~4% | Committed bundles must be excluded via config |
+| Auto-run traps | 1 | ~1% | `.vscode/tasks.json` with `runOn: folderOpen` is rare in real projects |
+| Lifecycle scripts | 1 | ~6% | `prepare`/`postinstall` are common; severity, not detection, is tuned |
+| Disguised files | 1 | ~0% | Magic-byte checks are exact |
+| Forged merges | 2 | ~3% | Squash-merge workflows can look like forged merges; API check disambiguates |
+| Evil merges | 2 | ~1% | Requires content matching neither parent |
+| Signing report | 2 | ~0% | Reports state, does not judge |
+| Known-malicious packages | 2 | ~0% | Curated list plus OSV `MAL-` advisories |
+
+Contributor feedback from Phase 4 is folded into Phase 5: the top requests
+were fewer lifecycle-script findings on ordinary projects, a way to report
+false positives without opening a Rust PR, and fix suggestions alongside
+each finding.

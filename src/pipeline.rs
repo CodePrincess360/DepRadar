@@ -356,7 +356,6 @@ pub fn scan_lockfile(path: impl AsRef<Path>, opts: &ScanOptions<'_>) -> Result<R
                             dependency,
                             FindingKind::Deprecated {
                                 message: info.message,
-                                yanked: info.yanked,
                             },
                         ));
                     }
@@ -374,26 +373,11 @@ pub fn scan_lockfile(path: impl AsRef<Path>, opts: &ScanOptions<'_>) -> Result<R
 
     // License policy check (issue #179).
     if let (Some(policy), Some(licenses)) = (opts.license_policy, opts.licenses) {
-        let pinned: Vec<(&Dependency, &str)> = packages
-            .iter()
-            .filter_map(|dependency| Some((dependency, dependency.version.as_deref()?)))
-            .collect();
-
-        for (dependency, version) in &pinned {
-            match licenses.license(dependency.ecosystem, &dependency.name, version) {
-                Ok(Some(license)) => {
-                    if !policy.is_allowed(&license) {
-                        findings.push(finding(
-                            dependency,
-                            FindingKind::License {
-                                license,
-                                allowed: policy.allowed().to_vec(),
-                            },
-                        ));
-                    }
+        for dependency in &packages {
+            if let Ok(Some(license)) = licenses.fetch_license(&dependency.name) {
+                if let Some(violation) = policy.check(&dependency.name, Some(&license)) {
+                    findings.push(finding(dependency, violation.kind));
                 }
-                Ok(None) => {}
-                Err(_) => {}
             }
         }
         finish_stage("license");
@@ -753,20 +737,15 @@ mod deprecation_license_tests {
     }
 
     struct FakeLicenses {
-        licenses: HashMap<(String, String), String>,
+        licenses: HashMap<String, String>,
     }
 
     impl LicenseSource for FakeLicenses {
-        fn license(
+        fn fetch_license(
             &self,
-            _ecosystem: Ecosystem,
             name: &str,
-            version: &str,
-        ) -> Result<Option<String>, AdvisoryError> {
-            Ok(self
-                .licenses
-                .get(&(name.to_string(), version.to_string()))
-                .cloned())
+        ) -> Result<Option<String>, crate::license::LicenseError> {
+            Ok(self.licenses.get(name).cloned())
         }
     }
 
@@ -870,10 +849,7 @@ version = "0.1.0"
         let path = write_lockfile(dir.path(), LOCKFILE);
 
         let mut licenses = HashMap::new();
-        licenses.insert(
-            ("gpl-pkg".to_string(), "2.0.0".to_string()),
-            "GPL-3.0".to_string(),
-        );
+        licenses.insert("gpl-pkg".to_string(), "GPL-3.0".to_string());
         let source = FakeLicenses { licenses };
         let policy = LicensePolicy::new(vec!["MIT".to_string(), "Apache-2.0".to_string()]);
 
@@ -906,10 +882,7 @@ version = "0.1.0"
         let path = write_lockfile(dir.path(), LOCKFILE);
 
         let mut licenses = HashMap::new();
-        licenses.insert(
-            ("gpl-pkg".to_string(), "2.0.0".to_string()),
-            "MIT".to_string(),
-        );
+        licenses.insert("gpl-pkg".to_string(), "MIT".to_string());
         let source = FakeLicenses { licenses };
         let policy = LicensePolicy::new(vec!["MIT".to_string()]);
 

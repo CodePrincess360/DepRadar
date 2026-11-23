@@ -392,7 +392,10 @@ mod tests {
     #[test]
     fn rank_returns_none_for_unknown_names() {
         assert_eq!(rank("this-package-does-not-exist-anywhere-xyz"), None);
-        assert_eq!(popularity_rank("this-package-does-not-exist-anywhere-xyz"), None);
+        assert_eq!(
+            popularity_rank("this-package-does-not-exist-anywhere-xyz"),
+            None
+        );
     }
 
     #[test]

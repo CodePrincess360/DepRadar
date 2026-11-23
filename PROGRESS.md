@@ -69,6 +69,13 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** cyfer-codes
 - **Closes:** #331
 
+### Docs — Module README for `src/behavioral/` — #454
+
+- **What:** Adds [`src/behavioral/README.md`](src/behavioral/README.md) documenting each behavioral detector (`scripts`, `network`, `setup_py`, `binaries`, `obfuscation`, `diff`, `tarball`), detailing its analyzed files, heuristic weights/signals, and severity levels consistent with `docs/severity.md`.
+- **Verified:** Every detector description, heuristic weight, constant, and link was verified against `src/behavioral/*.rs` and `docs/severity.md`.
+- **By:** genda-benjamin
+- **Closes:** #454
+
 ### Frontend — Manual light/dark theme toggle — #135
 
 - **What:** A System / Light / Dark toggle in the header
@@ -1573,3 +1580,9 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** ALLEN-AYODEJI
 - **Closes:** #154
 - **Status:** In review.
+
+- #310 — Scan checked-out repositories without executing their contents and encrypt nightly ecosystem reports for the disclosure team (@willy-de7)
+- #311 — Render and serve clean, findings, or stale README badges from repository scan reports (@willy-de7)
+- #312 — Open testnet bounties from confirmed findings and persist the SHA-256 report proof on the router (@willy-de7)
+- #313 — Record private notification and enforce the disclosure embargo for report and bounty publication (@willy-de7)
+- #314 — Fetch signed community indicators and verify the exact rule bytes before scanning (@willy-de7)

@@ -395,13 +395,7 @@ mod tests {
     #[test]
     fn display_renders_inserted_character() {
         let result = score_package("expresss");
-        assert_eq!(
-            result.edit_script,
-            vec![EditOp::Insert {
-                position: 7,
-                ch: 's'
-            }]
-        );
+        assert_eq!(result.edit_script, vec![EditOp::Insert { pos: 7, ch: 's' }]);
         assert!(result
             .to_string()
             .contains("expresss = \"express\" + inserted 's' at 7"));
@@ -412,13 +406,7 @@ mod tests {
         // "express" with the final 's' dropped.
         let result = score_package("expres");
         assert_eq!(result.distance_match, Some(("express".to_string(), 1)));
-        assert_eq!(
-            result.edit_script,
-            vec![EditOp::Delete {
-                position: 6,
-                ch: 's'
-            }]
-        );
+        assert_eq!(result.edit_script, vec![EditOp::Delete { pos: 6, ch: 's' }]);
         assert!(result
             .to_string()
             .contains("expres = \"express\" + deleted 's' at 6"));
@@ -431,7 +419,7 @@ mod tests {
         assert_eq!(
             result.edit_script,
             vec![EditOp::Substitute {
-                position: 3,
+                pos: 3,
                 from: 'u',
                 to: 'z'
             }]
@@ -448,7 +436,11 @@ mod tests {
         assert_eq!(result.distance_match, Some(("react".to_string(), 1)));
         assert_eq!(
             result.edit_script,
-            vec![EditOp::Transpose { position: 2 }]
+            vec![EditOp::Transpose {
+                pos: 2,
+                first: 'a',
+                second: 'c'
+            }]
         );
         assert!(result
             .to_string()

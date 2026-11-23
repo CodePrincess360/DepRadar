@@ -103,6 +103,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 }
 
 /** The connected Freighter wallet. Must be used inside `<WalletProvider>`. */
+// oxlint-disable-next-line react/only-export-components -- The provider and its hook share their private context.
 export function useWallet(): WalletValue {
   const value = useContext(WalletContext);
   if (!value) throw new Error("useWallet must be used inside <WalletProvider>");

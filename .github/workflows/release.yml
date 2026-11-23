@@ -124,13 +124,17 @@ jobs:
         with:
           name: changelog
           path: changelog
-      - name: Read changelog section
+      - name: Compose release notes
         id: changelog
         shell: bash
         run: |
           {
             echo 'body<<CHANGELOG_EOF'
             cat changelog/CHANGELOG_SECTION.md
+            echo ''
+            echo '---'
+            echo ''
+            echo 'Part of the [RepoGuard roadmap](https://github.com/DepRadarOrg/DepRadar/blob/main/ROADMAP.md).'
             echo 'CHANGELOG_EOF'
           } >> "$GITHUB_OUTPUT"
       - name: Publish release assets
