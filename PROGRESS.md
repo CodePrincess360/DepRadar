@@ -10,6 +10,24 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Read dependencies from `pyproject.toml` — #327
+
+- **What:** `pyproject.toml` is a recognised file (`LockfileKind::PyprojectToml`).
+  `pypi::parse_pyproject_with_warnings` reads PEP 621
+  `[project.dependencies]` and every group of
+  `[project.optional-dependencies]` as direct dependencies, parsing each
+  PEP 508 entry the same way as a `requirements.txt` line (extras and
+  environment markers are ignored). Entries without an exact `==` / `===` pin
+  are skipped with a warning, and a pin listed in several groups is reported
+  once. `parse_lockfile` and `parse_file` dispatch to it, so `depradar scan`
+  and directory scans pick up `pyproject.toml` files.
+- **Tests:** `pyproject_keeps_pinned_entries_and_warns_about_the_rest` in
+  `src/lockfile/pypi.rs` runs the new `tests/fixtures/pyproject.toml`
+  (pinned, ranged and extras entries); `detect` covers the new file name. Not
+  run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #327
+
 ### Scanner — Flag dependencies installed from git, URLs or local paths — #329
 
 - **What:** `Dependency` gains a `source` field holding the git URL, tarball

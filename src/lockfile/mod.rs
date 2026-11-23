@@ -6,7 +6,7 @@
 //! - [`cargo`] — `Cargo.lock`
 //! - [`npm`] — `package.json`
 //! - [`pnpm`] — `pnpm-lock.yaml` (v6 and v9)
-//! - [`pypi`] — `Pipfile.lock`
+//! - [`pypi`] — `Pipfile.lock`, `pyproject.toml`
 //! - [`yarn`] — `yarn.lock` (v1)
 //!
 //! [`detect`] works out which format a file is from its name, and
@@ -44,6 +44,8 @@ pub enum LockfileKind {
     CargoLock,
     /// npm `package.json` manifest (direct dependencies only).
     PackageJson,
+    /// PEP 621 `pyproject.toml` manifest (direct dependencies only).
+    PyprojectToml,
 }
 
 /// Works out a file's [`LockfileKind`] from its file name, ignoring the
@@ -58,6 +60,7 @@ pub fn detect(path: impl AsRef<Path>) -> Option<LockfileKind> {
         "Pipfile.lock" => LockfileKind::PipfileLock,
         "Cargo.lock" => LockfileKind::CargoLock,
         "package.json" => LockfileKind::PackageJson,
+        "pyproject.toml" => LockfileKind::PyprojectToml,
         name if name.starts_with("requirements") && name.ends_with(".txt") => {
             LockfileKind::Requirements
         }
@@ -153,6 +156,16 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         });
     }
 
+    if kind == LockfileKind::PyprojectToml {
+        let (dependencies, warnings) = pypi::parse_pyproject_with_warnings(&contents)
+            .map_err(|err| LockfileError::Invalid(err.to_string()))?;
+        return Ok(ParsedLockfile {
+            ecosystem: Ecosystem::PyPI,
+            dependencies,
+            warnings,
+        });
+    }
+
     let parse: fn(&str) -> Result<Vec<Dependency>, ParseError> = match kind {
         LockfileKind::PipfileLock => pypi::parse_pipfile_lock,
         LockfileKind::CargoLock => cargo::parse_cargo_lock,
@@ -160,7 +173,7 @@ pub fn parse_lockfile(path: &Path) -> Result<ParsedLockfile, LockfileError> {
         LockfileKind::YarnLock => yarn::parse_yarn_lock,
         LockfileKind::PnpmLock => pnpm::parse_pnpm_lock,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
-        LockfileKind::Requirements | LockfileKind::PackageLock => {
+        LockfileKind::Requirements | LockfileKind::PackageLock | LockfileKind::PyprojectToml => {
             unreachable!("handled above")
         }
     };
@@ -195,6 +208,7 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<Vec<Dependency>, ParseError>
         LockfileKind::PnpmLock => pnpm::parse_pnpm_lock,
         LockfileKind::Requirements => pypi::parse_requirements,
         LockfileKind::PoetryLock => pypi::parse_poetry_lock,
+        LockfileKind::PyprojectToml => pypi::parse_pyproject,
         LockfileKind::PackageLock => return Err(ParseError::Unsupported(kind)),
     };
     parse(&fs::read_to_string(path)?)
@@ -289,6 +303,7 @@ mod tests {
             ("Pipfile.lock", Some(LockfileKind::PipfileLock)),
             ("Cargo.lock", Some(LockfileKind::CargoLock)),
             ("package.json", Some(LockfileKind::PackageJson)),
+            ("pyproject.toml", Some(LockfileKind::PyprojectToml)),
             ("some/project/Cargo.lock", Some(LockfileKind::CargoLock)),
             ("Gemfile.lock", None),
             ("requirements.in", None),

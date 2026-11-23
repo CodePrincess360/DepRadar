@@ -41,6 +41,7 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
 | [`non-registry/yarn.lock`](non-registry/yarn.lock) | `yarn.lock` v1 (one git and one `file:` dependency) | `tests/scan_lockfile.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
+| [`pyproject.toml`](pyproject.toml) | PEP 621 `pyproject.toml` (pinned, ranged and extras entries) | `src/lockfile/pypi.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
 | [`behavioral/leftpad-lite-v1/`](behavioral/leftpad-lite-v1) | unpacked npm package (clean) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-v2/`](behavioral/leftpad-lite-v2) | unpacked PyPI sdist (adds a malicious `setup.py`) | `src/behavioral/diff.rs` |

@@ -1,7 +1,7 @@
 //! Python (PyPI) lockfile and manifest parsers: `Pipfile.lock`,
-//! `requirements.txt` and `poetry.lock`.
+//! `requirements.txt`, `poetry.lock` and `pyproject.toml`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
@@ -174,6 +174,69 @@ fn parse_requirement(line: &str) -> Option<(String, Option<String>)> {
         .filter(|v| !v.is_empty() && !v.contains(['*', ',', ' ']))
         .map(str::to_string);
     Some((name.to_string(), version))
+}
+
+/// The parts of a `pyproject.toml` we read: the PEP 621 `[project]`
+/// dependency lists. Build-system and tool tables are ignored.
+#[derive(Debug, Deserialize)]
+struct Pyproject {
+    project: Option<PyprojectProject>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PyprojectProject {
+    #[serde(default)]
+    dependencies: Vec<String>,
+    #[serde(default, rename = "optional-dependencies")]
+    optional_dependencies: BTreeMap<String, Vec<String>>,
+}
+
+/// Parses a `pyproject.toml`, discarding any warnings. See
+/// [`parse_pyproject_with_warnings`].
+pub fn parse_pyproject(contents: &str) -> Result<Vec<Dependency>, ParseError> {
+    parse_pyproject_with_warnings(contents).map(|(deps, _)| deps)
+}
+
+/// Parses the dependencies a PEP 621 `pyproject.toml` declares in
+/// `[project.dependencies]` and every group of
+/// `[project.optional-dependencies]`, plus warnings for skipped entries.
+///
+/// Each entry is a PEP 508 requirement, read like a `requirements.txt` line:
+/// extras (`name[extra]`) and environment markers are ignored. Only entries
+/// pinned with `==` (or `===`) are returned; any other entry (a range, a
+/// bare name, a URL) is skipped with a warning. Every entry is
+/// `direct: true`, and a pin listed in several groups is returned once.
+pub fn parse_pyproject_with_warnings(
+    contents: &str,
+) -> Result<(Vec<Dependency>, Vec<String>), ParseError> {
+    let pyproject: Pyproject = toml::from_str(contents)?;
+    let project = pyproject.project.unwrap_or_default();
+
+    let mut deps = Vec::new();
+    let mut warnings = Vec::new();
+    let mut seen = BTreeSet::new();
+    let optional = project.optional_dependencies.into_values().flatten();
+
+    for requirement in project.dependencies.into_iter().chain(optional) {
+        let Some((name, Some(version))) = parse_requirement(requirement.trim()) else {
+            warnings.push(format!(
+                "pyproject.toml dependency \"{requirement}\" has no pinned version; skipped"
+            ));
+            continue;
+        };
+        if seen.insert((name.clone(), version.clone())) {
+            deps.push(Dependency {
+                path: vec![name.clone()],
+                name,
+                version: Some(version),
+                ecosystem: Ecosystem::PyPI,
+                direct: true,
+                dev: false,
+                source: None,
+            });
+        }
+    }
+    Ok((deps, warnings))
 }
 
 /// The parts of a `poetry.lock` we read: the `[[package]]` array.
@@ -434,6 +497,48 @@ mod tests {
     #[test]
     fn invalid_poetry_toml_is_an_error() {
         assert!(parse_poetry_lock("[[package").is_err());
+    }
+
+    #[test]
+    fn pyproject_keeps_pinned_entries_and_warns_about_the_rest() {
+        let pyproject = include_str!("../../tests/fixtures/pyproject.toml");
+        let (deps, warnings) = parse_pyproject_with_warnings(pyproject).unwrap();
+
+        // Pinned, pinned with extras and a marker, and pinned optional
+        // dependencies; `requests` is listed twice but returned once.
+        let pins: Vec<(&str, Option<&str>)> = deps
+            .iter()
+            .map(|d| (d.name.as_str(), d.version.as_deref()))
+            .collect();
+        assert_eq!(
+            pins,
+            [
+                ("requests", Some("2.31.0")),
+                ("Django", Some("4.2.7")),
+                ("pytest", Some("8.0.0")),
+                ("sphinx", Some("7.2.6")),
+            ]
+        );
+        assert!(deps
+            .iter()
+            .all(|d| d.direct && !d.dev && d.ecosystem == Ecosystem::PyPI));
+
+        // Ranged and bare entries are skipped with a warning each.
+        assert_eq!(warnings.len(), 3, "{warnings:?}");
+        for skipped in ["flask>=2.0", "numpy", "black~=24.1"] {
+            assert!(
+                warnings.iter().any(|w| w.contains(skipped)),
+                "{skipped}: {warnings:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn pyproject_without_a_project_table_is_empty() {
+        let (deps, warnings) =
+            parse_pyproject_with_warnings("[tool.black]\nline-length = 100\n").unwrap();
+        assert!(deps.is_empty());
+        assert!(warnings.is_empty());
     }
 
     #[test]
