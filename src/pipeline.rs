@@ -148,6 +148,14 @@ impl Report {
 
 impl fmt::Display for Report {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.write_text(f, true)
+    }
+}
+
+impl Report {
+    /// The text rendering. [`DirReport`] passes `with_findings: false`
+    /// because it lists findings once across all lockfiles.
+    fn write_text(&self, f: &mut fmt::Formatter<'_>, with_findings: bool) -> fmt::Result {
         writeln!(
             f,
             "Scanned {} ({} packages, {} pinned versions checked for known vulnerabilities)",
@@ -156,12 +164,14 @@ impl fmt::Display for Report {
             self.summary.queried
         )?;
 
-        if self.findings.is_empty() {
-            writeln!(f, "\nNo findings.")?;
-        } else {
-            writeln!(f, "\nFindings ({}):", self.findings.len())?;
-            for finding in &self.findings {
-                writeln!(f, "  - {finding}")?;
+        if with_findings {
+            if self.findings.is_empty() {
+                writeln!(f, "\nNo findings.")?;
+            } else {
+                writeln!(f, "\nFindings ({}):", self.findings.len())?;
+                for finding in &self.findings {
+                    writeln!(f, "  - {finding}")?;
+                }
             }
         }
 
@@ -435,10 +445,67 @@ pub struct DirReport {
     pub errors: Vec<DirScanError>,
 }
 
+/// A finding reported once across a [`DirReport`], with every lockfile it
+/// came from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DirFinding {
+    pub finding: Finding,
+    /// Lockfiles reporting this finding, relative to the scanned root, in
+    /// report order.
+    pub lockfiles: Vec<PathBuf>,
+}
+
+impl fmt::Display for DirFinding {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let lockfiles: Vec<String> = self
+            .lockfiles
+            .iter()
+            .map(|path| path.to_string_lossy().replace('\\', "/"))
+            .collect();
+        write!(f, "{} (in {})", self.finding, lockfiles.join(", "))
+    }
+}
+
 impl DirReport {
     /// True if any lockfile has an unsuppressed finding.
     pub fn has_findings(&self) -> bool {
         self.lockfiles.iter().any(Report::has_findings)
+    }
+
+    /// Unsuppressed findings across every lockfile, with identical findings
+    /// (same package, version, ecosystem and kind) grouped into one entry
+    /// that lists the lockfiles they came from. A grouped finding is direct
+    /// if it is direct in any lockfile, and keeps the shortest known path.
+    pub fn findings(&self) -> Vec<DirFinding> {
+        let mut grouped: Vec<DirFinding> = Vec::new();
+        for report in &self.lockfiles {
+            for finding in &report.findings {
+                let existing = grouped.iter_mut().find(|group| {
+                    group.finding.package == finding.package
+                        && group.finding.version == finding.version
+                        && group.finding.ecosystem == finding.ecosystem
+                        && group.finding.kind == finding.kind
+                });
+                let Some(group) = existing else {
+                    grouped.push(DirFinding {
+                        finding: finding.clone(),
+                        lockfiles: vec![report.path.clone()],
+                    });
+                    continue;
+                };
+                group.finding.direct |= finding.direct;
+                let shorter = !finding.path.is_empty()
+                    && (group.finding.path.is_empty()
+                        || finding.path.len() < group.finding.path.len());
+                if shorter {
+                    group.finding.path = finding.path.clone();
+                }
+                if !group.lockfiles.contains(&report.path) {
+                    group.lockfiles.push(report.path.clone());
+                }
+            }
+        }
+        grouped
     }
 }
 
@@ -450,12 +517,22 @@ impl fmt::Display for DirReport {
             self.root.display(),
             self.lockfiles.len()
         )?;
+        let findings = self.findings();
+        if findings.is_empty() {
+            write!(f, "\n\nNo findings.")?;
+        } else {
+            write!(f, "\n\nFindings ({}):", findings.len())?;
+            for finding in &findings {
+                write!(f, "\n  - {finding}")?;
+            }
+        }
         for report in &self.lockfiles {
             write!(
                 f,
-                "\n\n== {} ==\n{report}",
+                "\n\n== {} ==\n",
                 report.path.to_string_lossy().replace('\\', "/")
             )?;
+            report.write_text(f, false)?;
         }
         if !self.errors.is_empty() {
             write!(f, "\n\nErrors ({}):", self.errors.len())?;

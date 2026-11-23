@@ -10,6 +10,22 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Report each package once across a monorepo scan — #330
+
+- **What:** `DirReport::findings()` in `src/pipeline.rs` groups identical
+  findings (same package, version, ecosystem and kind) from every lockfile
+  into one `DirFinding` that lists the lockfiles it came from. The text output
+  of a directory scan now prints that grouped list once, e.g.
+  `requests@2.19.0 [direct]: known vulnerability … (in services/api/requirements.txt, services/worker/requirements.txt)`,
+  and each `== lockfile ==` section keeps only its scan line, suppressions,
+  warnings and summary. Per-lockfile `Report::findings` and the JSON output
+  are unchanged.
+- **Tests:** `scan_dir_reports_a_shared_finding_once_with_every_lockfile` in
+  `tests/scan_dir.rs`: two lockfiles with the same vulnerable package give one
+  finding with two paths. Not run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #330
+
 ### Scanner — Scan only lockfiles changed since a git ref — #333
 
 - **What:** `depradar scan <dir> --changed-since <git-ref>` scans only the
