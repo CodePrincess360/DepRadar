@@ -36,13 +36,19 @@ covered by the repository's [MIT license](../../LICENSE).
 | --- | --- | --- |
 | [`npm-basic/package-lock.json`](npm-basic/package-lock.json) | `package-lock.json` v3 | `tests/lockfile.rs`, `tests/scan_lockfile.rs` |
 | [`npm-chain/package-lock.json`](npm-chain/package-lock.json) | `package-lock.json` v3 | `tests/lockfile.rs`, `tests/scan_lockfile.rs` |
+| [`npm-shrinkwrap/npm-shrinkwrap.json`](npm-shrinkwrap/npm-shrinkwrap.json) | `npm-shrinkwrap.json` (lockfile v3) | `tests/cli.rs` |
 | [`package-lock-v1.json`](package-lock-v1.json) | `package-lock.json` v1 | not referenced by a test yet |
 | [`package-lock-v3.json`](package-lock-v3.json) | `package-lock.json` v3 | not referenced by a test yet |
 | [`package.json`](package.json) | `package.json` | `src/lockfile/mod.rs`, `src/lockfile/npm.rs` |
 | [`non-registry/yarn.lock`](non-registry/yarn.lock) | `yarn.lock` v1 (one git and one `file:` dependency) | `tests/scan_lockfile.rs` |
 | [`pypi-basic/requirements.txt`](pypi-basic/requirements.txt) | `requirements.txt` | `tests/lockfile.rs` |
 | [`pyproject.toml`](pyproject.toml) | PEP 621 `pyproject.toml` (pinned, ranged and extras entries) | `src/lockfile/pypi.rs` |
+| [`pypi-unpinned/requirements.txt`](pypi-unpinned/requirements.txt) | `requirements.txt` (two unpinned lines) | `tests/scan_lockfile.rs`, `tests/cli.rs` |
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
+| [`bun.lock`](bun.lock) | `bun.lock` | `src/lockfile/bun.rs`, `tests/lockfile.rs` |
+| [`uv.lock`](uv.lock) | `uv.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`pdm.lock`](pdm.lock) | `pdm.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`Gemfile.lock`](Gemfile.lock) | `Gemfile.lock` | `src/lockfile/ruby.rs`, `tests/lockfile.rs` |
 | [`composer-basic/composer.lock`](composer-basic/composer.lock) | `composer.lock` | `src/lockfile/composer.rs` |
 | [`go-basic/go.sum`](go-basic/go.sum) | `go.sum` | `src/lockfile/go.rs` |
 | [`yarn-berry/yarn.lock`](yarn-berry/yarn.lock) | `yarn.lock` (Berry) | `src/lockfile/mod.rs`, `src/lockfile/yarn.rs` |

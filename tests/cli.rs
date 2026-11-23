@@ -101,6 +101,29 @@ fn scan_dir_json_groups_findings_by_lockfile() {
 }
 
 #[test]
+fn scan_dir_scans_npm_shrinkwrap() {
+    let output = depradar()
+        .args(["scan", "--offline", "--format", "json"])
+        .arg(fixture("npm-shrinkwrap"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+
+    let json = stdout_json(&output);
+    let lockfiles = json["lockfiles"].as_array().unwrap();
+    assert_eq!(lockfiles.len(), 1);
+    assert_eq!(lockfiles[0]["path"], "npm-shrinkwrap.json");
+    assert_eq!(lockfiles[0]["ecosystem"], "npm");
+    let findings = lockfiles[0]["findings"].as_array().unwrap();
+    assert!(
+        findings
+            .iter()
+            .any(|f| f["package"] == "expresss" && f["kind"] == "typosquat"),
+        "{findings:?}"
+    );
+}
+
+#[test]
 fn scan_file_text_reports_findings() {
     let output = depradar()
         .args(["scan", "--offline"])
@@ -110,6 +133,30 @@ fn scan_file_text_reports_findings() {
     assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("reqeusts"), "{stdout}");
+}
+
+#[test]
+fn scan_reports_unpinned_requirements_in_text_and_json() {
+    let text = depradar()
+        .args(["scan", "--offline"])
+        .arg(fixture("pypi-unpinned/requirements.txt"))
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&text.stdout);
+    assert!(stdout.contains("2 unpinned"), "{stdout}");
+
+    let json = depradar()
+        .args(["--format", "json", "scan", "--offline"])
+        .arg(fixture("pypi-unpinned/requirements.txt"))
+        .output()
+        .unwrap();
+    let json = stdout_json(&json);
+    let lockfile = &json["lockfiles"][0];
+    assert_eq!(lockfile["summary"]["unpinned"], 2);
+    assert_eq!(
+        lockfile["unpinned"],
+        serde_json::json!(["requests", "flask"])
+    );
 }
 
 #[test]

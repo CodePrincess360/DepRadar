@@ -355,11 +355,29 @@ DepRadar is released under the [MIT License](LICENSE).
 
 ## Handsoff notes
 
+<!-- handsoff-issue-299 -->
+- #299: [repo-scan] Day 11: Commit signing report
+
+<!-- handsoff-issue-300 -->
+- #300: [repo-scan] Day 12: `--all-refs` and `--prs`
+
+<!-- handsoff-issue-301 -->
+- #301: [repo-scan] Day 13: Known-malicious packages in lockfiles
+
+<!-- handsoff-issue-302 -->
+- #302: [repo-scan] Day 14: `repo-scan --baseline`
+
 <!-- handsoff-issue-304 -->
 - #304: [repo-scan] Day 16: PR mode: scan only what a PR changes
 
 <!-- handsoff-issue-305 -->
 - #305: [repo-scan] Day 17: `--harden` suggestions
+
+<!-- handsoff-issue-307 -->
+- #307: [repo-scan] Day 19: `depradar org-scan <org>`
+
+<!-- handsoff-issue-309 -->
+- #309: [repo-scan] Day 21: Incident-response playbook and "write your first rule" tutorial
 
 <!-- handsoff-issue-316 -->
 - #316: [repo-scan] Day 28: Fast scanning for large monorepos

@@ -29,6 +29,11 @@
 //! # Accepted values: "npm", "pypi", "cargo", "go", "maven", "rubygems", "packagist"
 //! # Default: all ecosystems
 //! ecosystems = ["npm", "pypi"]
+//!
+//! # Names of the project's private packages. Any that also exist on the
+//! # public registry are flagged as possible dependency confusion.
+//! # Default: []
+//! private_packages = ["@acme/billing", "acme-internal-utils"]
 //! ```
 
 use std::fmt;
@@ -189,6 +194,11 @@ pub struct ProjectConfig {
     /// ecosystems.
     #[serde(default)]
     pub ecosystems: Vec<ConfigEcosystem>,
+
+    /// Names of the project's private packages, checked against the public
+    /// registry for dependency confusion. Default: empty.
+    #[serde(default)]
+    pub private_packages: Vec<String>,
 }
 
 /// Errors that can occur when loading a `depradar.toml`.
@@ -311,6 +321,7 @@ mod tests {
         assert!(cfg.format.is_none());
         assert!(cfg.exclude.is_empty());
         assert!(cfg.ecosystems.is_empty());
+        assert!(cfg.private_packages.is_empty());
     }
 
     #[test]
@@ -328,6 +339,16 @@ mod tests {
         assert_eq!(
             cfg.ecosystems,
             vec![ConfigEcosystem::Npm, ConfigEcosystem::Pypi]
+        );
+    }
+
+    #[test]
+    fn private_packages_parse() {
+        let toml = r#"private_packages = ["@acme/billing", "acme-internal-utils"]"#;
+        let cfg: ProjectConfig = toml::from_str(toml).unwrap();
+        assert_eq!(
+            cfg.private_packages,
+            vec!["@acme/billing", "acme-internal-utils"]
         );
     }
 
