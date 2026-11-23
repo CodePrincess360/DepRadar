@@ -1,4 +1,4 @@
-//! Bundled lists of popular npm, PyPI and crates.io package names.
+//! Bundled lists of popular npm, PyPI, crates.io and RubyGems package names.
 //!
 //! Typosquatting attacks work by publishing a package whose name is one edit
 //! away from something popular (`reqeusts`, `expresss`, `lodahs`). Detecting
@@ -25,34 +25,41 @@ const PYPI_TOP_PACKAGES_JSON: &str = include_str!("../../data/popular-packages/p
 const CRATES_TOP_PACKAGES_JSON: &str =
     include_str!("../../data/popular-packages/crates-top1000.json");
 
+/// Raw JSON text of the RubyGems popular-package list, embedded at compile
+/// time.
+const RUBYGEMS_TOP_PACKAGES_JSON: &str =
+    include_str!("../../data/popular-packages/rubygems-top1000.json");
+
 /// Raw JSON text of the allowlist of legitimate near-collisions, embedded at
 /// compile time.
 #[allow(dead_code)]
 const ALLOWLIST_JSON: &str = include_str!("../../data/allowlist.json");
 
-/// Loads the bundled npm, PyPI and crates.io popular-package lists and returns
-/// them as a single combined list.
+/// Loads the bundled npm, PyPI, crates.io and RubyGems popular-package lists
+/// and returns them as a single combined list.
 ///
-/// npm entries come first, in file order, followed by PyPI entries and then
-/// crates.io entries, each in file order. Names are returned as-is; no
+/// npm entries come first, in file order, followed by PyPI, crates.io and
+/// then RubyGems entries, each in file order. Names are returned as-is; no
 /// normalisation or de-duplication is applied — that belongs with the
 /// (not-yet-written) scoring logic.
 pub fn load_popular_packages() -> Vec<String> {
     let mut combined = parse_string_array(NPM_TOP_PACKAGES_JSON);
     combined.extend(parse_string_array(PYPI_TOP_PACKAGES_JSON));
     combined.extend(parse_string_array(CRATES_TOP_PACKAGES_JSON));
+    combined.extend(parse_string_array(RUBYGEMS_TOP_PACKAGES_JSON));
     combined
 }
 
-/// The npm, PyPI and crates.io lists, parsed once and cached for the life of
-/// the process.
-fn registry_lists() -> &'static [Vec<String>; 3] {
-    static LISTS: OnceLock<[Vec<String>; 3]> = OnceLock::new();
+/// The npm, PyPI, crates.io and RubyGems lists, parsed once and cached for
+/// the life of the process.
+fn registry_lists() -> &'static [Vec<String>; 4] {
+    static LISTS: OnceLock<[Vec<String>; 4]> = OnceLock::new();
     LISTS.get_or_init(|| {
         [
             parse_string_array(NPM_TOP_PACKAGES_JSON),
             parse_string_array(PYPI_TOP_PACKAGES_JSON),
             parse_string_array(CRATES_TOP_PACKAGES_JSON),
+            parse_string_array(RUBYGEMS_TOP_PACKAGES_JSON),
         ]
     })
 }
@@ -170,6 +177,12 @@ mod tests {
             is_valid_name: is_valid_crate_name,
             identity: str::to_string,
         },
+        Dataset {
+            file: "rubygems-top1000.json",
+            raw: RUBYGEMS_TOP_PACKAGES_JSON,
+            is_valid_name: is_valid_gem_name,
+            identity: str::to_string,
+        },
     ];
 
     /// npm: an optional `@scope/` prefix, then a name, each made of
@@ -213,6 +226,14 @@ mod tests {
             && name
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-_".contains(c))
+    }
+
+    /// RubyGems: `a-z 0-9 - . _`, starting with a letter or digit.
+    fn is_valid_gem_name(name: &str) -> bool {
+        name.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+            && name
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-._".contains(c))
     }
 
     /// PEP 503 normalisation: runs of `-`, `_` and `.` collapse to one `-`,
@@ -356,6 +377,14 @@ mod tests {
             assert!(
                 packages.iter().any(|p| p == name),
                 "expected crate '{name}' in the combined list"
+            );
+        }
+
+        // Two of the best-known gems.
+        for name in ["rails", "nokogiri"] {
+            assert!(
+                packages.iter().any(|p| p == name),
+                "expected gem '{name}' in the combined list"
             );
         }
     }

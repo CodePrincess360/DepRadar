@@ -10,6 +10,22 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Typosquat — RubyGems popular-package dataset — #334
+
+- **What:** `data/popular-packages/rubygems-top1000.json` holds the 1000
+  most-downloaded gems, ranked by rubygems.org total download counts via the
+  BestGems ranking (rubygems.org's own stats page stops at 100).
+  `scripts/update-datasets.py rubygems` regenerates it, and
+  `typosquat::dataset` loads it alongside the npm, PyPI and crates.io lists,
+  so RubyGems names are scored and ranked like the others. The dataset
+  README documents the source.
+- **Tests:** the dataset validation test now covers the RubyGems file (unique,
+  trimmed, lowercase, valid gem names); the loader test checks `rails` and
+  `nokogiri`; `rubygems_typosquat_is_flagged` in `src/typosquat/scanner.rs`
+  flags `nokogri` as one edit from `nokogiri`. Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #334
+
 ### Scanner — Dependency-confusion check for private package names — #332
 
 - **What:** `depradar.toml` accepts `private_packages = [...]`

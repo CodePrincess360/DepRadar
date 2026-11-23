@@ -323,6 +323,14 @@ mod tests {
     }
 
     #[test]
+    fn rubygems_typosquat_is_flagged() {
+        // `nokogiri` is only in the RubyGems dataset.
+        let result = score_package("nokogri");
+        assert_eq!(result.distance_match, Some(("nokogiri".to_string(), 1)));
+        assert!(result.is_likely_typosquat());
+    }
+
+    #[test]
     fn unrelated_name_is_not_flagged() {
         // Long and distinctive enough that its nearest dataset neighbour is
         // far past the threshold (verified: distance 24 to the closest

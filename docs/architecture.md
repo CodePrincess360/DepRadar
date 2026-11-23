@@ -22,7 +22,7 @@ The crawler discovers new packages and versions from public registries. Each reg
 
 The scanner evaluates packages against four detection classes:
 
-- **Typosquat** (`typosquat/`) — edit-distance, homoglyph (lookalike characters), keyboard typos, combosquat (popular name + bait suffix), and scope confusion. Uses a BK-tree index over the top-1000 packages from npm, PyPI and crates.io.
+- **Typosquat** (`typosquat/`) — edit-distance, homoglyph (lookalike characters), keyboard typos, combosquat (popular name + bait suffix), and scope confusion. Uses a BK-tree index over the top-1000 packages from npm, PyPI, crates.io and RubyGems.
 - **CVE matching** (`cve/`) — queries [osv.dev](https://osv.dev) for known vulnerabilities in a pinned package version.
 - **Behavioral** (`behavioral/`) — analyzes unpacked package contents for install-time scripts, shipped native binaries, and risky changes between versions.
 - **License** (`license/`) — fetches license metadata from registries and flags licenses outside a configurable allowlist.
