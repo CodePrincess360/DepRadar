@@ -139,3 +139,6 @@ exported functions so they can be tested without hitting the network:
   throws on a missing or non-numeric `--bounty-id` and on an unknown flag.
 - The formatter turns a bounty and its claims into the printed report,
   including the `(no bounty with this ID)` line for unknown IDs.
+
+To read the report hash on a router with proof support, use
+`npm start -- --bounty-id 1 --contract "$ROUTER" --proof`.
