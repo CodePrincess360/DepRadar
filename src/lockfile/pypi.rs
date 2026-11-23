@@ -1,5 +1,5 @@
 //! Python (PyPI) lockfile and manifest parsers: `Pipfile.lock`,
-//! `requirements.txt`, `poetry.lock` and `uv.lock`.
+//! `requirements.txt`, `poetry.lock`, `uv.lock` and `pdm.lock`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -306,6 +306,62 @@ pub fn parse_uv_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> {
         .collect())
 }
 
+/// The parts of a `pdm.lock` we read: the `[[package]]` array.
+#[derive(Debug, Deserialize)]
+struct PdmLock {
+    #[serde(default)]
+    package: Vec<PdmPackage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PdmPackage {
+    name: String,
+    version: Option<String>,
+    /// Dependency groups the package belongs to (`default`, `dev`, ...).
+    groups: Option<Vec<String>>,
+    /// PEP 508 requirement strings such as `"certifi>=2017.4.17"`.
+    #[serde(default)]
+    dependencies: Vec<String>,
+}
+
+/// Parses a PDM `pdm.lock` into its locked dependencies.
+///
+/// Every `[[package]]` entry is read, with PEP 503 name normalization. `dev`
+/// is `true` when `groups` is present and doesn't include `default`.
+/// `pdm.lock` has no entry for the project itself, so a package is `direct`
+/// when no other locked package depends on it: nothing else could have pulled
+/// it in. A declared package that another package also depends on can't be
+/// told apart from a transitive one and is reported `direct: false`.
+pub fn parse_pdm_lock(contents: &str) -> Result<Vec<Dependency>, ParseError> {
+    let lock: PdmLock = toml::from_str(contents)?;
+
+    let required: BTreeSet<String> = lock
+        .package
+        .iter()
+        .flat_map(|package| &package.dependencies)
+        .filter_map(|requirement| parse_requirement(requirement))
+        .map(|(name, _)| normalize_pypi_name(&name))
+        .collect();
+
+    Ok(lock
+        .package
+        .into_iter()
+        .map(|package| {
+            let name = normalize_pypi_name(&package.name);
+            Dependency {
+                direct: !required.contains(&name),
+                dev: package
+                    .groups
+                    .is_some_and(|groups| !groups.iter().any(|g| g == "default")),
+                version: package.version,
+                ecosystem: Ecosystem::PyPI,
+                path: Vec::new(),
+                name,
+            }
+        })
+        .collect())
+}
+
 /// PEP 503 name normalization: lowercase, with each run of `-`, `_` and `.`
 /// replaced by a single `-`.
 fn normalize_pypi_name(name: &str) -> String {
@@ -554,6 +610,50 @@ mod tests {
         assert!(parse_uv_lock("[[package").is_err());
         // `name` is required on every package.
         assert!(parse_uv_lock("[[package]]\nversion = \"1.0\"\n").is_err());
+    }
+
+    const PDM_LOCK: &str = include_str!("../../tests/fixtures/pdm.lock");
+
+    #[test]
+    fn pdm_lock_parses_packages_with_groups_and_direct_flags() {
+        let deps = parse_pdm_lock(PDM_LOCK).unwrap();
+        assert_eq!(deps.len(), 5);
+        assert!(deps.iter().all(|d| d.ecosystem == Ecosystem::PyPI));
+
+        let requests = find(&deps, "requests");
+        assert_eq!(requests.version.as_deref(), Some("2.32.3"));
+        assert!(requests.direct);
+        assert!(!requests.dev);
+
+        let pytest = find(&deps, "pytest");
+        assert!(pytest.direct);
+        assert!(pytest.dev);
+
+        // Required by requests.
+        let certifi = find(&deps, "certifi");
+        assert!(!certifi.direct);
+        assert!(!certifi.dev);
+
+        // Required by pytest (with a version specifier and an environment
+        // marker), and the `Tomli` name is normalized on both sides.
+        assert!(!find(&deps, "iniconfig").direct);
+        let tomli = find(&deps, "tomli");
+        assert_eq!(tomli.version.as_deref(), Some("2.0.2"));
+        assert!(!tomli.direct);
+        assert!(tomli.dev);
+    }
+
+    #[test]
+    fn pdm_lock_without_packages_is_empty() {
+        assert!(parse_pdm_lock("[metadata]\nlock_version = \"4.5.0\"\n")
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn invalid_pdm_lock_is_an_error() {
+        assert!(parse_pdm_lock("[[package").is_err());
+        assert!(parse_pdm_lock("[[package]]\nname = \"a\"\ndependencies = \"b\"\n").is_err());
     }
 
     #[test]

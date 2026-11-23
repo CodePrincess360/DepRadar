@@ -159,3 +159,29 @@ fn malformed_uv_lock_is_an_error() {
 
     assert!(parse_lockfile(&path).is_err());
 }
+
+#[test]
+fn pdm_lock_marks_packages_nothing_else_requires_as_direct() {
+    let parsed = parse_lockfile(&fixture("pdm.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::PyPI);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("certifi", Some("2024.8.30"), false),
+            ("iniconfig", Some("2.0.0"), false),
+            ("pytest", Some("8.3.3"), true),
+            ("requests", Some("2.32.3"), true),
+            ("tomli", Some("2.0.2"), false),
+        ]
+    );
+}
+
+#[test]
+fn malformed_pdm_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pdm.lock");
+    std::fs::write(&path, "[[package]\nname = ").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}

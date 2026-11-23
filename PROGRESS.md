@@ -10,6 +10,22 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — pdm.lock parser — #321
+
+- **What:** Adds `parse_pdm_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and
+  registers `pdm.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `PyPI`). Every `[[package]]` entry is read
+  with PEP 503 name normalization. `dev` is `true` when `groups` doesn't
+  include `default`. `pdm.lock` has no project entry, so a package is
+  `direct` when no other locked package lists it in `dependencies`.
+  Malformed input returns a `ParseError`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/pdm.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #321
+- **Status:** In review.
+
 ### scanner — uv.lock parser — #320
 
 - **What:** Adds `parse_uv_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and

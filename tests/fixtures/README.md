@@ -43,6 +43,7 @@ covered by the repository's [MIT license](../../LICENSE).
 | [`Pipfile.lock`](Pipfile.lock) | `Pipfile.lock` | `src/lockfile/mod.rs`, `src/lockfile/pypi.rs` |
 | [`bun.lock`](bun.lock) | `bun.lock` | `src/lockfile/bun.rs`, `tests/lockfile.rs` |
 | [`uv.lock`](uv.lock) | `uv.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
+| [`pdm.lock`](pdm.lock) | `pdm.lock` | `src/lockfile/pypi.rs`, `tests/lockfile.rs` |
 | [`behavioral/leftpad-lite-v1/`](behavioral/leftpad-lite-v1) | unpacked npm package (clean) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-v2/`](behavioral/leftpad-lite-v2) | unpacked PyPI sdist (adds a malicious `setup.py`) | `src/behavioral/diff.rs` |
 | [`behavioral/leftpad-lite-docs/`](behavioral/leftpad-lite-docs) | `leftpad-lite-v1` + `CHANGELOG.md` | `src/behavioral/diff.rs` |
