@@ -10,6 +10,13 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Docs — Contract error codes reference — #449
+
+- **What:** Adds [`docs/contract-errors.md`](docs/contract-errors.md) mapping every Soroban contract error code from `contracts/deprader_router/src/lib.rs` to its enum variant, triggering methods, failure conditions, and remediation guidance.
+- **Verified:** Every error code, variant name, and condition cross-referenced against `contracts/deprader_router/src/lib.rs`.
+- **By:** genda-benjamin
+- **Closes:** #449
+
 ### Docs — Module README for `src/behavioral/` — #454
 
 - **What:** Adds [`src/behavioral/README.md`](src/behavioral/README.md) documenting each behavioral detector (`scripts`, `network`, `setup_py`, `binaries`, `obfuscation`, `diff`, `tarball`), detailing its analyzed files, heuristic weights/signals, and severity levels consistent with `docs/severity.md`.
