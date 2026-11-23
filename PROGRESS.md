@@ -10,6 +10,23 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### scanner — Gemfile.lock parser — #322
+
+- **What:** Adds `parse_gemfile_lock` in [`ruby.rs`](src/lockfile/ruby.rs)
+  and registers `Gemfile.lock` in `lockfile::detect`, `parse_file` and
+  `parse_lockfile` (ecosystem `RubyGems`). Gems are read from the `specs:`
+  of the `GEM`, `GIT` and `PATH` sections (`name (version)`), with platform
+  suffixes such as `-x86_64-linux` dropped and each `(name, version)` pair
+  returned once. A gem is `direct` when it is listed under `DEPENDENCIES`;
+  `dev` is always `false` because the lockfile doesn't record groups.
+  Malformed input returns the new `ParseError::Invalid`.
+- **Tests:** Unit tests and a `tests/lockfile.rs` fixture test over the new
+  `tests/fixtures/Gemfile.lock` (names, versions, direct/transitive flags,
+  malformed input). Not run in this change.
+- **By:** elmuby
+- **Closes:** #322
+- **Status:** In review.
+
 ### scanner — pdm.lock parser — #321
 
 - **What:** Adds `parse_pdm_lock` in [`pypi.rs`](src/lockfile/pypi.rs) and

@@ -185,3 +185,32 @@ fn malformed_pdm_lock_is_an_error() {
 
     assert!(parse_lockfile(&path).is_err());
 }
+
+#[test]
+fn gemfile_lock_marks_declared_gems_direct() {
+    let parsed = parse_lockfile(&fixture("Gemfile.lock")).unwrap();
+
+    assert_eq!(parsed.ecosystem, deprader::model::Ecosystem::RubyGems);
+    assert_eq!(
+        relations(&parsed.dependencies),
+        vec![
+            ("my_engine", Some("0.2.0"), true),
+            ("local_gem", Some("0.1.0"), true),
+            // Two platform variants of the same version, returned once.
+            ("nokogiri", Some("1.16.2"), true),
+            ("racc", Some("1.7.3"), false),
+            ("rack", Some("3.0.9"), false),
+            ("rails", Some("7.1.3"), true),
+            ("rake", Some("13.1.0"), true),
+        ]
+    );
+}
+
+#[test]
+fn malformed_gemfile_lock_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("Gemfile.lock");
+    std::fs::write(&path, "GEM\n  specs:\n    rack-3.0.9\n").unwrap();
+
+    assert!(parse_lockfile(&path).is_err());
+}
