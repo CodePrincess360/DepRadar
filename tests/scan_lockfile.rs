@@ -225,6 +225,24 @@ fn ignore_file_suppresses_matching_findings_until_they_expire() {
 }
 
 #[test]
+fn counts_and_lists_unpinned_requirements() {
+    let opts = ScanOptions {
+        typosquat: false,
+        advisories: None,
+        ..ScanOptions::default()
+    };
+
+    let report = scan_lockfile(fixture("pypi-unpinned/requirements.txt"), &opts).unwrap();
+
+    assert_eq!(report.summary.packages, 3);
+    assert_eq!(report.summary.unpinned, 2);
+    assert_eq!(report.unpinned(), vec!["requests", "flask"]);
+    let text = report.to_string();
+    assert!(text.contains("2 unpinned"), "{text}");
+    assert!(text.contains("  - requests\n"), "{text}");
+}
+
+#[test]
 fn ignore_file_without_reason_is_rejected() {
     assert!(IgnoreFile::parse("[[ignore]]\npackage = \"lodash\"\n").is_err());
 }

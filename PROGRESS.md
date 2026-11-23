@@ -10,6 +10,65 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Entries
 
+### Scanner — Detect `npm-shrinkwrap.json` — #328
+
+- **What:** `lockfile::detect` maps `npm-shrinkwrap.json` to
+  `LockfileKind::PackageLock`, since it uses the `package-lock.json` format,
+  so it is recognised everywhere `detect` is used.
+- **Tests:** a `npm-shrinkwrap.json` case in `detects_every_supported_file_name`
+  (`src/lockfile/mod.rs`), and `scan_dir_scans_npm_shrinkwrap` in
+  `tests/cli.rs`, which runs `depradar scan` over the new
+  `tests/fixtures/npm-shrinkwrap/` fixture and expects its typosquat. Not run
+  yet.
+- **By:** cyfer-codes
+- **Closes:** #328
+
+### Typosquat — RubyGems popular-package dataset — #334
+
+- **What:** `data/popular-packages/rubygems-top1000.json` holds the 1000
+  most-downloaded gems, ranked by rubygems.org total download counts via the
+  BestGems ranking (rubygems.org's own stats page stops at 100).
+  `scripts/update-datasets.py rubygems` regenerates it, and
+  `typosquat::dataset` loads it alongside the npm, PyPI and crates.io lists,
+  so RubyGems names are scored and ranked like the others. The dataset
+  README documents the source.
+- **Tests:** the dataset validation test now covers the RubyGems file (unique,
+  trimmed, lowercase, valid gem names); the loader test checks `rails` and
+  `nokogiri`; `rubygems_typosquat_is_flagged` in `src/typosquat/scanner.rs`
+  flags `nokogri` as one edit from `nokogiri`. Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #334
+
+### Scanner — Dependency-confusion check for private package names — #332
+
+- **What:** `depradar.toml` accepts `private_packages = [...]`
+  (`ProjectConfig::private_packages`). The new `registry::confusion` module's
+  `find_public_names` queries the public npm registry for each name, encoding
+  scoped names the same way as `registry::npm`, and returns the names that
+  exist publicly. A `404` means unclaimed; any other failure is returned as an
+  error instead of being read as "not found".
+- **Tests:** mock-registry tests in `src/registry/confusion.rs` (a private name
+  that exists publicly is flagged, a scoped unclaimed name is not, and a `500`
+  is an error), plus a `private_packages` parse test in `src/config.rs`. Not
+  run yet.
+- **By:** cyfer-codes
+- **Closes:** #332
+
+### Scanner — Report unpinned dependencies — #331
+
+- **What:** `Summary` gains an `unpinned` count of packages with no exact
+  version (such as `requests>=2`), which are never sent for a CVE lookup.
+  `Report::unpinned()` lists their names. The text output (`Report`'s
+  `Display` and `report::text`) adds an `Unpinned (N, ...)` section and
+  `N unpinned` to the summary line; the JSON report adds `summary.unpinned`
+  and an `unpinned` name list.
+- **Tests:** `counts_and_lists_unpinned_requirements` in
+  `tests/scan_lockfile.rs` and `scan_reports_unpinned_requirements_in_text_and_json`
+  in `tests/cli.rs`, over the new `tests/fixtures/pypi-unpinned/requirements.txt`
+  fixture (two unpinned lines). Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #331
+
 ### Docs — Contract error codes reference — #449
 
 - **What:** Adds [`docs/contract-errors.md`](docs/contract-errors.md) mapping every Soroban contract error code from `contracts/deprader_router/src/lib.rs` to its enum variant, triggering methods, failure conditions, and remediation guidance.

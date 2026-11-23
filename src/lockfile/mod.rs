@@ -38,7 +38,7 @@ pub mod yarn;
 /// A lockfile or manifest format DepRadar recognises by file name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockfileKind {
-    /// npm `package-lock.json`.
+    /// npm `package-lock.json`, or `npm-shrinkwrap.json` (same format).
     PackageLock,
     /// Yarn `yarn.lock`.
     YarnLock,
@@ -75,7 +75,7 @@ pub enum LockfileKind {
 pub fn detect(path: impl AsRef<Path>) -> Option<LockfileKind> {
     let file_name = path.as_ref().file_name()?.to_str()?;
     let kind = match file_name {
-        "package-lock.json" => LockfileKind::PackageLock,
+        "package-lock.json" | "npm-shrinkwrap.json" => LockfileKind::PackageLock,
         "yarn.lock" => LockfileKind::YarnLock,
         "pnpm-lock.yaml" => LockfileKind::PnpmLock,
         "poetry.lock" => LockfileKind::PoetryLock,
@@ -322,6 +322,7 @@ mod tests {
     fn detects_every_supported_file_name() {
         let cases = [
             ("package-lock.json", Some(LockfileKind::PackageLock)),
+            ("npm-shrinkwrap.json", Some(LockfileKind::PackageLock)),
             ("yarn.lock", Some(LockfileKind::YarnLock)),
             ("pnpm-lock.yaml", Some(LockfileKind::PnpmLock)),
             ("requirements.txt", Some(LockfileKind::Requirements)),
