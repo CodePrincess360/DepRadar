@@ -3,6 +3,8 @@ name: Dependency Audit
 on:
   schedule:
     - cron: "0 6 * * 1"
+    # Nightly ecosystem sweep (issue #310)
+    - cron: "0 3 * * *"
   pull_request:
     paths:
       - "**/Cargo.toml"
@@ -64,3 +66,44 @@ jobs:
         with:
           node-version: 22
       - run: npm audit --omit=dev --audit-level=high
+
+  ecosystem-sweep:
+    name: nightly ecosystem sweep
+    runs-on: ubuntu-latest
+    # Read-only scan of a published list of Drips Wave repositories.
+    # Results are uploaded as a private artifact for coordinated disclosure.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan Drips Wave repositories (read-only, rate-limited)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_LIST: .github/drips-wave-repos.txt
+          RATE_LIMIT_SECONDS: "2"
+        run: |
+          set -euo pipefail
+          mkdir -p ecosystem-report
+          report="ecosystem-report/sweep-$(date -u +%Y%m%d).json"
+          echo '{"generated_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","repos":[]}' > "$report"
+          if [ -f "$REPO_LIST" ]; then
+            while IFS= read -r repo; do
+              [ -z "$repo" ] && continue
+              case "$repo" in \#*) continue ;; esac
+              echo "Scanning $repo (read-only)"
+              curl -sS -f \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$repo/dependency-graph/sbom" \
+                -o "ecosystem-report/$(echo "$repo" | tr '/' '_').sbom.json" \
+                || echo "warn: failed to fetch $repo"
+              sleep "$RATE_LIMIT_SECONDS"
+            done < "$REPO_LIST"
+          else
+            echo "No repo list found at $REPO_LIST; skipping"
+          fi
+      - name: Upload private report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecosystem-sweep-report
+          path: ecosystem-report/
+          retention-days: 30
+          if-no-files-found: warn
