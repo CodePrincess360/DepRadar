@@ -99,6 +99,14 @@ pub struct ScanResult {
     /// Set when [`combosquat`] found that the candidate is a popular package
     /// name with bait words attached (`lodash-utils`): the popular package.
     pub combosquat: Option<String>,
+    /// Set when the candidate matches a popular package once separators
+    /// (`-`, `_`, `.`) are normalised (`lodash-merge` vs `lodash.merge`):
+    /// the popular package. Never fires for PyPI, where PEP 503 already
+    /// treats separator variants as the same name.
+    pub separator_swap_match: Option<String>,
+    /// Set when flipping a single bit of one character of the candidate
+    /// yields a popular package (`lodasj` vs `lodash`): the popular package.
+    pub bitsquat_match: Option<String>,
     /// How likely the candidate is a typosquat, from 0 (no signal) to 100.
     /// See [`confidence`] for the formula.
     pub confidence: u8,
@@ -112,6 +120,8 @@ impl ScanResult {
             || self.digit_swap_match.is_some()
             || self.scope_confusion.is_some()
             || self.combosquat.is_some()
+            || self.separator_swap_match.is_some()
+            || self.bitsquat_match.is_some()
     }
 }
 
@@ -171,6 +181,18 @@ impl fmt::Display for ScanResult {
                 "\n  - combosquat of popular package \"{name}\" with bait words"
             )?;
         }
+        if let Some(name) = &self.separator_swap_match {
+            write!(
+                f,
+                "\n  - separator swap of popular package \"{name}\""
+            )?;
+        }
+        if let Some(name) = &self.bitsquat_match {
+            write!(
+                f,
+                "\n  - bitsquat of popular package \"{name}\""
+            )?;
+        }
         Ok(())
     }
 }
@@ -181,7 +203,7 @@ impl fmt::Display for ScanResult {
 ///
 /// | Part        | Points                                                        |
 /// |-------------|---------------------------------------------------------------|
-/// | lookalike   | 50 if a non-distance signal fired (homoglyph, digit swap, scope confusion or combosquat), else 0 |
+/// | lookalike   | 50 if a non-distance signal fired (homoglyph, digit swap, scope confusion, combosquat, separator swap or bitsquat), else 0 |
 /// | distance    | `40 - 10 * distance` (30 at distance 1, 20 at 2) if the distance signal fired, else 0 |
 /// | popularity  | by the best [`popularity_rank`] among the matched targets: 20 for rank < 10, 15 for < 100, 10 for < 500, 5 otherwise |
 ///
@@ -210,11 +232,15 @@ pub fn confidence(
     digit_swap_match: Option<&str>,
     scope_confusion: Option<&str>,
     combosquat: Option<&str>,
+    separator_swap_match: Option<&str>,
+    bitsquat_match: Option<&str>,
 ) -> u8 {
     let lookalike = homoglyph_match
         .or(digit_swap_match)
         .or(scope_confusion)
-        .or(combosquat);
+        .or(combosquat)
+        .or(separator_swap_match)
+        .or(bitsquat_match);
     if distance_match.is_none() && lookalike.is_none() {
         return 0;
     }
@@ -230,6 +256,8 @@ pub fn confidence(
         .chain(digit_swap_match)
         .chain(scope_confusion)
         .chain(combosquat)
+        .chain(separator_swap_match)
+        .chain(bitsquat_match)
         .filter_map(popularity_rank)
         .min();
     let popularity_points: usize = match best_rank {
@@ -246,6 +274,67 @@ pub fn confidence(
 fn popular_index() -> &'static BkTree<'static> {
     static INDEX: OnceLock<BkTree<'static>> = OnceLock::new();
     INDEX.get_or_init(|| BkTree::new(popular_packages()))
+}
+
+/// Folds every separator (`-`, `_`, `.`) to `-` so that names differing only
+/// in separator choice compare equal.
+fn normalize_separators(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            '-' | '_' | '.' => '-',
+            other => other,
+        })
+        .collect()
+}
+
+/// Detects a separator swap: the candidate matches a popular package once
+/// separators are normalised, but is not the package itself.
+///
+/// PyPI is skipped because PEP 503 already treats `-`, `_` and `.` as the
+/// same name, so a separator variant there is not a distinct package.
+fn separator_swap_impersonation(
+    normalized: &str,
+    dataset: &[super::dataset::PopularPackage],
+) -> Option<String> {
+    let folded = normalize_separators(normalized);
+    if !folded.contains('-') {
+        return None;
+    }
+    dataset
+        .iter()
+        .filter(|pkg| pkg.ecosystem != "pypi")
+        .find(|pkg| {
+            let target = normalize_separators(&pkg.name);
+            target == folded && pkg.name != normalized
+        })
+        .map(|pkg| pkg.name.clone())
+}
+
+/// Detects bitsquatting: flipping a single bit of one character of the
+/// candidate yields a popular package name.
+fn bitsquat_impersonation(
+    normalized: &str,
+    dataset: &[super::dataset::PopularPackage],
+) -> Option<String> {
+    let chars: Vec<char> = normalized.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        for bit in 0..8u32 {
+            let flipped = c as u32 ^ (1 << bit);
+            let Some(replacement) = char::from_u32(flipped) else {
+                continue;
+            };
+            if replacement == c {
+                continue;
+            }
+            let mut candidate: String = chars[..i].iter().collect();
+            candidate.push(replacement);
+            candidate.extend(&chars[i + 1..]);
+            if let Some(pkg) = dataset.iter().find(|pkg| pkg.name == candidate) {
+                return Some(pkg.name.clone());
+            }
+        }
+    }
+    None
 }
 
 /// Scores `name` against the bundled popular-package dataset using every
@@ -281,12 +370,16 @@ pub fn score_package(name: &str) -> ScanResult {
         .is_some_and(|(matched, _)| keyboard_typo(&normalized, matched));
     let scope_confusion = scope_confusion(&normalized, dataset);
     let combosquat = combosquat(&normalized, dataset);
+    let separator_swap_match = separator_swap_impersonation(&normalized, dataset);
+    let bitsquat_match = bitsquat_impersonation(&normalized, dataset);
     let confidence = confidence(
         distance_match.as_ref(),
         homoglyph_match.as_deref(),
         digit_swap_match.as_deref(),
         scope_confusion.as_deref(),
         combosquat.as_deref(),
+        separator_swap_match.as_deref(),
+        bitsquat_match.as_deref(),
     );
 
     ScanResult {
@@ -299,6 +392,8 @@ pub fn score_package(name: &str) -> ScanResult {
         keyboard_typo,
         scope_confusion,
         combosquat,
+        separator_swap_match,
+        bitsquat_match,
         confidence,
     }
 }
@@ -388,7 +483,7 @@ mod tests {
         let json = serde_json::to_string(&result).expect("ScanResult serializes");
         assert_eq!(
             json,
-            r#"{"candidate":"expresss","distance_match":["express",1],"edit_script":[{"op":"insert","position":7,"char":"s"}],"rank":111,"homoglyph_match":null,"digit_swap_match":null,"keyboard_typo":false,"scope_confusion":null,"combosquat":null,"confidence":40}"#
+            r#"{"candidate":"expresss","distance_match":["express",1],"edit_script":[{"op":"insert","position":7,"char":"s"}],"rank":111,"homoglyph_match":null,"digit_swap_match":null,"keyboard_typo":false,"scope_confusion":null,"combosquat":null,"separator_swap_match":null,"bitsquat_match":null,"confidence":40}"#
         );
     }
 
@@ -533,5 +628,74 @@ mod tests {
     fn display_reports_no_signal_for_clean_name() {
         let result = score_package("react");
         assert_eq!(result.to_string(), "react: no typosquat signal detected");
+    }
+
+    #[test]
+    fn dash_to_underscore_swap_on_npm_is_flagged() {
+        // `lodash.merge` (npm) with its dot swapped for a dash.
+        let result = score_package("lodash-merge");
+        assert_eq!(result.separator_swap_match.as_deref(), Some("lodash.merge"));
+        assert!(result.is_likely_typosquat());
+        assert!(result
+            .to_string()
+            .contains("separator swap of popular package \"lodash.merge\""));
+    }
+
+    #[test]
+    fn dot_to_dash_swap_on_crates_is_flagged() {
+        // `serde_json` (crates.io) with its underscore swapped for a dash.
+        let result = score_package("serde-json");
+        assert_eq!(result.separator_swap_match.as_deref(), Some("serde_json"));
+        assert!(result.is_likely_typosquat());
+    }
+
+    #[test]
+    fn separator_swap_is_skipped_on_pypi() {
+        // `date_fns` is a PyPI package; PEP 503 already normalises separators
+        // so `date-fns` is not a distinct squat there.
+        let result = score_package("date-fns");
+        assert_eq!(result.separator_swap_match, None);
+    }
+
+    #[test]
+    fn bitsquat_of_lodash_is_flagged() {
+        // 'h' (0x68) flipped in bit 1 is 'j' (0x6a): `lodasj`.
+        let result = score_package("lodasj");
+        assert_eq!(result.bitsquat_match.as_deref(), Some("lodash"));
+        assert!(result.is_likely_typosquat());
+        assert!(result
+            .to_string()
+            .contains("bitsquat of popular package \"lodash\""));
+    }
+
+    #[test]
+    fn bitsquat_of_react_is_flagged() {
+        // 'a' (0x61) flipped in bit 3 is 'i' (0x69): `reict`.
+        let result = score_package("reict");
+        assert_eq!(result.bitsquat_match.as_deref(), Some("react"));
+    }
+
+    #[test]
+    fn bitsquat_of_express_is_flagged() {
+        // 'x' (0x78) flipped in bit 2 is '|'... use 'e' (0x65) -> 'm' (0x6d)
+        // instead: `mxpress` is not a package, so flip the second 's' (0x73)
+        // in bit 1 to 'q' (0x71): `expresq`.
+        let result = score_package("expresq");
+        assert_eq!(result.bitsquat_match.as_deref(), Some("express"));
+    }
+
+    #[test]
+    fn unrelated_names_are_not_bitsquats() {
+        for name in ["definitely-not-a-real-package-zzz123", "my-own-lib", "zzzz"] {
+            let result = score_package(name);
+            assert_eq!(result.bitsquat_match, None, "{name} should not be a bitsquat");
+        }
+    }
+
+    #[test]
+    fn exact_package_is_not_a_bitsquat() {
+        let result = score_package("react");
+        assert_eq!(result.bitsquat_match, None);
+        assert_eq!(result.separator_swap_match, None);
     }
 }

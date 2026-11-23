@@ -636,6 +636,51 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Status:** In review.
 
 
+### Typosquat — Go and Packagist popular-package datasets — #335, #336
+
+- **What:** Adds `data/popular-packages/go-top1000.json` (the 1000 most
+  imported Go modules, from deps.dev / pkg.go.dev import counts) and
+  `data/popular-packages/packagist-top1000.json` (the 1000 most-installed
+  Composer packages from packagist.org's popular list).
+  `scripts/update-datasets.py` gains `go` and `packagist` sources that
+  regenerate both files in the existing format, and `typosquat::dataset`
+  loads them for the `Go` and `Packagist` ecosystems, so names in those
+  ecosystems are scored and ranked like the others. The dataset README
+  documents both sources.
+- **Tests:** the dataset validation test now covers both files (unique,
+  trimmed, valid module/package names); the loader test checks known
+  entries (`github.com/gin-gonic/gin`, `symfony/console`); a known Go
+  module typosquat and a known Packagist typosquat are flagged in
+  `src/typosquat/scanner.rs`. Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #335, #336
+
+### Typosquat — separator-swap signal (`-`, `_`, `.`) — #339
+
+- **What:** Adds a signal for names that match a popular package once
+  separators are normalised, so `date_fns` (for `date-fns`) and
+  `lodash.merge` (for `lodash-merge`) are caught even when they are more
+  than one cheap edit away. PyPI is skipped, since PEP 503 already treats
+  `-`, `_` and `.` as the same name. The signal is reported on
+  `ScanResult` and contributes to the confidence score.
+- **Tests:** `-`↔`_` and `.`↔`-` swaps on npm and crates.io are flagged;
+  the same swap on PyPI is not. Not run yet.
+- **By:** cyfer-codes
+- **Closes:** #339
+
+### Typosquat — bitsquatting signal — #341
+
+- **What:** Adds a bitsquatting signal: for each character of a candidate
+  name, a single bit flip is applied and the result is looked up in the
+  dataset, so names one bit away from a popular package (`lodasj` for
+  `lodash`) are flagged. The signal is reported on `ScanResult` and
+  contributes to the confidence score.
+- **Tests:** three bit-flipped examples are flagged and three negatives
+  (the real package, an unrelated name, a two-bit-flip name) are not. Not
+  run yet.
+- **By:** cyfer-codes
+- **Closes:** #341
+
 ### Dependency licenses and sources — `cargo deny` — #163
 
 - **What:** Adds [`deny.toml`](deny.toml) allowing MIT, Apache-2.0, BSD,
