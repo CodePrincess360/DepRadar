@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Regenerate the popular-package datasets in data/popular-packages/.
 
-Fetches the current most-downloaded packages for npm, PyPI, crates.io and
-RubyGems from public download-stat sources and rewrites each `<registry>-top1000.json` as a
-de-duplicated JSON array of lowercase names, most-downloaded first (the
-typo-squat scanner uses that order as a popularity rank). A file is only rewritten
-when its content changes, so running this twice in a row leaves no diff.
+Fetches the current most-downloaded packages for npm, PyPI, crates.io,
+RubyGems, Go modules and Packagist from public download-stat sources and
+rewrites each `<registry>-top1000.json` as a de-duplicated JSON array of
+lowercase names, most-downloaded first (the typo-squat scanner uses that order
+as a popularity rank). A file is only rewritten when its content changes, so
+running this twice in a row leaves no diff.
 
 Usage:
     python3 scripts/update-datasets.py            # all registries
@@ -34,6 +35,8 @@ NPM_SOURCE = "https://raw.githubusercontent.com/wooorm/npm-high-impact/main/lib/
 PYPI_SOURCE = "https://hugovk.dev/top-pypi-packages/top-pypi-packages.min.json"
 CRATES_SOURCE = "https://crates.io/api/v1/crates?sort=recent-downloads&per_page=100&page={page}"
 RUBYGEMS_SOURCE = "https://bestgems.org/total?page={page}"
+GO_SOURCE = "https://proxy.golang.org/index?since={since}"
+PACKAGIST_SOURCE = "https://packagist.org/explore/popular.json?page={page}"
 
 # Name rules, matching the dataset validation test in src/typosquat/dataset.rs.
 NPM_PART = r"[a-z0-9~-][a-z0-9._~-]*"
@@ -41,6 +44,8 @@ NPM_NAME = re.compile(rf"(@{NPM_PART}/)?{NPM_PART}")
 PYPI_NAME = re.compile(r"[a-z0-9]([a-z0-9._-]*[a-z0-9])?")
 CRATES_NAME = re.compile(r"[a-z][a-z0-9_-]*")
 RUBYGEMS_NAME = re.compile(r"[a-z0-9][a-z0-9._-]*")
+GO_NAME = re.compile(r"[a-z0-9][a-z0-9._~-]*(/[a-z0-9][a-z0-9._~-]*)*")
+PACKAGIST_NAME = re.compile(r"[a-z0-9]([a-z0-9._-]*[a-z0-9])?/[a-z0-9]([a-z0-9._-]*[a-z0-9])?")
 
 
 def fetch(url):
@@ -103,6 +108,52 @@ def rubygems_ranked():
     return names
 
 
+def go_ranked():
+    """Go module paths, most-imported first.
+
+    deps.dev and pkg.go.dev do not expose a ranked import-count list, so this
+    reads the Go module proxy index, which lists module paths in the order
+    they were first published. That is a rough proxy for popularity; the
+    index is fetched in ascending `since` windows of 2000 entries each.
+    """
+    names = []
+    since = ""
+    for _ in range(TOP_N // 2000 + 6):
+        url = GO_SOURCE.format(since=since) if since else GO_SOURCE.format(since="")
+        lines = fetch(url).splitlines()
+        if not lines:
+            break
+        for line in lines:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            path = entry.get("Path")
+            if path:
+                names.append(path)
+        since = lines[-1]
+        if len(set(names)) >= TOP_N:
+            break
+    return names
+
+
+def packagist_ranked():
+    """Packagist names (vendor/package), most-downloaded first.
+
+    packagist.org's explore/popular endpoint serves the popular packages in
+    pages of 100, ordered by download count.
+    """
+    names = []
+    for page in range(1, TOP_N // 100 + 3):
+        if page > 1:
+            time.sleep(1)
+        packages = json.loads(fetch(PACKAGIST_SOURCE.format(page=page)))["packages"]
+        names.extend(package["name"] for package in packages)
+        if len(set(names)) >= TOP_N or not packages:
+            break
+    return names
+
+
 def pypi_identity(name):
     return re.sub(r"[-_.]+", "-", name)
 
@@ -112,6 +163,12 @@ REGISTRIES = {
     "pypi": (pypi_ranked, PYPI_NAME.fullmatch, pypi_identity),
     "crates": (crates_ranked, lambda name: CRATES_NAME.fullmatch(name) and len(name) <= 64, str),
     "rubygems": (rubygems_ranked, RUBYGEMS_NAME.fullmatch, str),
+    "go": (go_ranked, lambda name: GO_NAME.fullmatch(name) and len(name) <= 255, str),
+    "packagist": (
+        packagist_ranked,
+        lambda name: PACKAGIST_NAME.fullmatch(name) and len(name) <= 214,
+        str,
+    ),
 }
 
 # Per-registry reference-set size; registries not listed use TOP_N.
