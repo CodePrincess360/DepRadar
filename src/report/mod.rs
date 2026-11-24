@@ -89,7 +89,9 @@ impl AdvisorySeverities {
 /// A homoglyph typosquat is critical: lookalike characters only end up in a
 /// package name on purpose. A name that is merely a few edits from a popular
 /// package is high, since it may be an honest near-collision. A vulnerability
-/// takes its advisory's level, or [`UNRATED_ADVISORY`] if that's unknown.
+/// takes its advisory's level, or [`UNRATED_ADVISORY`] if that's unknown. A
+/// package installed from outside the registry is low: it is usually
+/// deliberate, but no registry check covered it.
 pub fn severity_of(finding: &Finding, advisories: &AdvisorySeverities) -> Severity {
     match &finding.kind {
         FindingKind::Typosquat {
@@ -101,6 +103,7 @@ pub fn severity_of(finding: &Finding, advisories: &AdvisorySeverities) -> Severi
         FindingKind::Vulnerability { advisory_id } => {
             advisories.get(advisory_id).unwrap_or(UNRATED_ADVISORY)
         }
+        FindingKind::NonRegistrySource { .. } => Severity::Low,
     }
 }
 

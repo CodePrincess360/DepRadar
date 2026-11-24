@@ -17,6 +17,24 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** genda-benjamin
 - **Closes:** #444
 
+### Scanner — Read dependencies from `pyproject.toml` — #327
+
+- **What:** `pyproject.toml` is a recognised file (`LockfileKind::PyprojectToml`).
+  `pypi::parse_pyproject_with_warnings` reads PEP 621
+  `[project.dependencies]` and every group of
+  `[project.optional-dependencies]` as direct dependencies, parsing each
+  PEP 508 entry the same way as a `requirements.txt` line (extras and
+  environment markers are ignored). Entries without an exact `==` / `===` pin
+  are skipped with a warning, and a pin listed in several groups is reported
+  once. `parse_lockfile` and `parse_file` dispatch to it, so `depradar scan`
+  and directory scans pick up `pyproject.toml` files.
+- **Tests:** `pyproject_keeps_pinned_entries_and_warns_about_the_rest` in
+  `src/lockfile/pypi.rs` runs the new `tests/fixtures/pyproject.toml`
+  (pinned, ranged and extras entries); `detect` covers the new file name. Not
+  run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #327
+
 ### Scanner — Detect `npm-shrinkwrap.json` — #328
 
 - **What:** `lockfile::detect` maps `npm-shrinkwrap.json` to
@@ -30,21 +48,56 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** cyfer-codes
 - **Closes:** #328
 
-### Typosquat — RubyGems popular-package dataset — #334
+### Scanner — Flag dependencies installed from git, URLs or local paths — #329
 
-- **What:** `data/popular-packages/rubygems-top1000.json` holds the 1000
-  most-downloaded gems, ranked by rubygems.org total download counts via the
-  BestGems ranking (rubygems.org's own stats page stops at 100).
-  `scripts/update-datasets.py rubygems` regenerates it, and
-  `typosquat::dataset` loads it alongside the npm, PyPI and crates.io lists,
-  so RubyGems names are scored and ranked like the others. The dataset
-  README documents the source.
-- **Tests:** the dataset validation test now covers the RubyGems file (unique,
-  trimmed, lowercase, valid gem names); the loader test checks `rails` and
-  `nokogiri`; `rubygems_typosquat_is_flagged` in `src/typosquat/scanner.rs`
-  flags `nokogri` as one edit from `nokogiri`. Not run yet.
+- **What:** `Dependency` gains a `source` field holding the git URL, tarball
+  URL or `file:` path a package was installed from when that isn't the
+  registry. The parsers fill it from npm's URL `version` or `file:` `resolved`,
+  the Yarn v1 entry header (`pkg@git+https://…`, `pkg@file:…`), the pnpm
+  `resolution` block (`repo`/`commit`, `tarball`, `directory`), and Cargo's
+  `git+…` `source`. `scan_lockfile` reports each such package as a new
+  `FindingKind::NonRegistrySource`, rated **low** in `severity_of`, with an
+  issue-ref kind of `non-registry-source` and a matching SARIF rule.
+  `docs/severity.md` and `docs/issue-ref.md` document the new kind.
+- **Tests:** `git_and_file_dependencies_are_flagged_as_non_registry` in
+  `tests/scan_lockfile.rs` scans the new `tests/fixtures/non-registry/yarn.lock`
+  (one git and one `file:` dependency) and expects two findings; unit tests
+  cover the pnpm and Cargo sources. The `npm-basic` fixture's `file:` entry
+  is now flagged too, so the scan and SARIF tests that use it expect that
+  finding. Not run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #329
+
+### Scanner — Report each package once across a monorepo scan — #330
+
+- **What:** `DirReport::findings()` in `src/pipeline.rs` groups identical
+  findings (same package, version, ecosystem and kind) from every lockfile
+  into one `DirFinding` that lists the lockfiles it came from. The text output
+  of a directory scan now prints that grouped list once, e.g.
+  `requests@2.19.0 [direct]: known vulnerability … (in services/api/requirements.txt, services/worker/requirements.txt)`,
+  and each `== lockfile ==` section keeps only its scan line, suppressions,
+  warnings and summary. Per-lockfile `Report::findings` and the JSON output
+  are unchanged.
+- **Tests:** `scan_dir_reports_a_shared_finding_once_with_every_lockfile` in
+  `tests/scan_dir.rs`: two lockfiles with the same vulnerable package give one
+  finding with two paths. Not run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #330
+
+### Scanner — Report unpinned dependencies — #331
+
+- **What:** `Summary` gains an `unpinned` count of packages with no exact
+  version (such as `requests>=2`), which are never sent for a CVE lookup.
+  `Report::unpinned()` lists their names. The text output (`Report`'s
+  `Display` and `report::text`) adds an `Unpinned (N, ...)` section and
+  `N unpinned` to the summary line; the JSON report adds `summary.unpinned`
+  and an `unpinned` name list.
+- **Tests:** `counts_and_lists_unpinned_requirements` in
+  `tests/scan_lockfile.rs` and `scan_reports_unpinned_requirements_in_text_and_json`
+  in `tests/cli.rs`, over the new `tests/fixtures/pypi-unpinned/requirements.txt`
+  fixture (two unpinned lines). Not run yet.
 - **By:** cyfer-codes
-- **Closes:** #334
+- **Closes:** #331
 
 ### Scanner — Dependency-confusion check for private package names — #332
 
@@ -61,20 +114,35 @@ is closed — see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **By:** cyfer-codes
 - **Closes:** #332
 
-### Scanner — Report unpinned dependencies — #331
+### Scanner — Scan only lockfiles changed since a git ref — #333
 
-- **What:** `Summary` gains an `unpinned` count of packages with no exact
-  version (such as `requests>=2`), which are never sent for a CVE lookup.
-  `Report::unpinned()` lists their names. The text output (`Report`'s
-  `Display` and `report::text`) adds an `Unpinned (N, ...)` section and
-  `N unpinned` to the summary line; the JSON report adds `summary.unpinned`
-  and an `unpinned` name list.
-- **Tests:** `counts_and_lists_unpinned_requirements` in
-  `tests/scan_lockfile.rs` and `scan_reports_unpinned_requirements_in_text_and_json`
-  in `tests/cli.rs`, over the new `tests/fixtures/pypi-unpinned/requirements.txt`
-  fixture (two unpinned lines). Not run yet.
+- **What:** `depradar scan <dir> --changed-since <git-ref>` scans only the
+  lockfiles that `git diff --name-only <git-ref>` lists, so CI on a large
+  monorepo checks just the lockfiles a PR touched. The library side is
+  `pipeline::scan_dir_changed_since` and `pipeline::changed_files`;
+  unchanged lockfiles are skipped before they are parsed or sent to OSV. An
+  unknown ref is an error rather than an empty scan.
+- **Tests:** `scan_dir_changed_since_scans_only_changed_lockfiles` in
+  `tests/scan_dir.rs` builds a temp git repo with two lockfiles, changes one,
+  and checks that only that one is scanned. Not run yet.
+- **By:** Muhammadcodes112
+- **Closes:** #333
+
+### Typosquat — RubyGems popular-package dataset — #334
+
+- **What:** `data/popular-packages/rubygems-top1000.json` holds the 1000
+  most-downloaded gems, ranked by rubygems.org total download counts via the
+  BestGems ranking (rubygems.org's own stats page stops at 100).
+  `scripts/update-datasets.py rubygems` regenerates it, and
+  `typosquat::dataset` loads it alongside the npm, PyPI and crates.io lists,
+  so RubyGems names are scored and ranked like the others. The dataset
+  README documents the source.
+- **Tests:** the dataset validation test now covers the RubyGems file (unique,
+  trimmed, lowercase, valid gem names); the loader test checks `rails` and
+  `nokogiri`; `rubygems_typosquat_is_flagged` in `src/typosquat/scanner.rs`
+  flags `nokogri` as one edit from `nokogiri`. Not run yet.
 - **By:** cyfer-codes
-- **Closes:** #331
+- **Closes:** #334
 
 ### Docs — Contract error codes reference — #449
 

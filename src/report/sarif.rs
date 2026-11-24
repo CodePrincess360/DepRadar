@@ -1,9 +1,9 @@
 //! [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 //! output, the format GitHub code scanning ingests.
 //!
-//! The run declares one rule per [`FindingKind`] (`typosquat` and
-//! `vulnerability`) and one result per finding. Each result points at the
-//! scanned lockfile, on the first line that names the package when the
+//! The run declares one rule per [`FindingKind`] (`typosquat`,
+//! `vulnerability`, `non-registry-source`, `deprecated` and `license`) and one result per finding.
+//! Each result points at the scanned lockfile, on the first line that names the package when the
 //! lockfile's contents are available. Severity maps to the SARIF `level`
 //! (critical/high → `error`, medium → `warning`, low → `note`) and to the
 //! `security-severity` score GitHub uses to rank security alerts.
@@ -31,7 +31,7 @@ struct Rule {
     default_severity: Severity,
 }
 
-const RULES: [Rule; 4] = [
+const RULES: [Rule; 5] = [
     Rule {
         id: "typosquat",
         name: "Typosquat",
@@ -48,6 +48,14 @@ const RULES: [Rule; 4] = [
         full: "OSV reports a published security advisory affecting the exact version \
                pinned in the lockfile.",
         default_severity: Severity::High,
+    },
+    Rule {
+        id: "non-registry-source",
+        name: "NonRegistrySource",
+        short: "Dependency is installed from outside the registry",
+        full: "The package comes from a git URL, a tarball URL or a local path instead of \
+               the package registry, so registry-side checks don't cover it.",
+        default_severity: Severity::Low,
     },
     Rule {
         id: "deprecated",
@@ -69,8 +77,9 @@ fn rule_index(kind: &FindingKind) -> usize {
     match kind {
         FindingKind::Typosquat { .. } => 0,
         FindingKind::Vulnerability { .. } => 1,
-        FindingKind::Deprecated { .. } => 2,
-        FindingKind::License { .. } => 3,
+        FindingKind::NonRegistrySource { .. } => 2,
+        FindingKind::Deprecated { .. } => 3,
+        FindingKind::License { .. } => 4,
     }
 }
 

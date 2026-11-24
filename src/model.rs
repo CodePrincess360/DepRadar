@@ -29,6 +29,10 @@ pub struct Dependency {
     /// (`requirements.txt`) start at the dependency itself. Empty if the
     /// lockfile doesn't connect the package to the project.
     pub path: Vec<String>,
+    /// Where the package was installed from when that isn't the registry:
+    /// a git URL, a tarball URL or a local `file:` path. `None` for registry
+    /// packages.
+    pub source: Option<String>,
 }
 
 /// What the scanner found wrong with a dependency.
@@ -51,6 +55,10 @@ pub enum FindingKind {
         license: String,
         allowed: Vec<String>,
     },
+    /// The package was installed from a git URL, a tarball URL or a local
+    /// path instead of the registry, so registry checks don't cover it.
+    /// `source` is that location; see [`Dependency::source`].
+    NonRegistrySource { source: String },
 }
 
 /// A single problem with a single dependency.
@@ -110,6 +118,9 @@ impl fmt::Display for Finding {
                 }
                 Ok(())
             }
+            FindingKind::NonRegistrySource { source } => {
+                write!(f, ": installed from outside the registry ({source})")
+            }
         }
     }
 }
@@ -123,6 +134,7 @@ pub enum IssueKind {
     Vulnerability,
     Deprecated,
     License,
+    NonRegistrySource,
 }
 
 impl IssueKind {
@@ -132,6 +144,7 @@ impl IssueKind {
             IssueKind::Vulnerability => "vulnerability",
             IssueKind::Deprecated => "deprecated",
             IssueKind::License => "license",
+            IssueKind::NonRegistrySource => "non-registry-source",
         }
     }
 
@@ -141,6 +154,7 @@ impl IssueKind {
             "vulnerability" => IssueKind::Vulnerability,
             "deprecated" => IssueKind::Deprecated,
             "license" => IssueKind::License,
+            "non-registry-source" => IssueKind::NonRegistrySource,
             _ => return None,
         })
     }
@@ -211,6 +225,7 @@ impl From<&Finding> for IssueRef {
             }
             FindingKind::Deprecated { .. } => (IssueKind::Deprecated, None),
             FindingKind::License { license, .. } => (IssueKind::License, Some(license.clone())),
+            FindingKind::NonRegistrySource { .. } => (IssueKind::NonRegistrySource, None),
         };
         IssueRef {
             ecosystem: finding.ecosystem,
