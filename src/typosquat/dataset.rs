@@ -1,4 +1,5 @@
-//! Bundled lists of popular npm, PyPI, crates.io and RubyGems package names.
+//! Bundled lists of popular npm, PyPI, crates.io, RubyGems, Go module and
+//! Packagist package names.
 //!
 //! Typosquatting attacks work by publishing a package whose name is one edit
 //! away from something popular (`reqeusts`, `expresss`, `lodahs`). Detecting
@@ -30,36 +31,49 @@ const CRATES_TOP_PACKAGES_JSON: &str =
 const RUBYGEMS_TOP_PACKAGES_JSON: &str =
     include_str!("../../data/popular-packages/rubygems-top1000.json");
 
+/// Raw JSON text of the Go module popular-package list, embedded at compile
+/// time.
+const GO_TOP_PACKAGES_JSON: &str = include_str!("../../data/popular-packages/go-top1000.json");
+
+/// Raw JSON text of the Packagist popular-package list, embedded at compile
+/// time.
+const PACKAGIST_TOP_PACKAGES_JSON: &str =
+    include_str!("../../data/popular-packages/packagist-top1000.json");
+
 /// Raw JSON text of the allowlist of legitimate near-collisions, embedded at
 /// compile time.
 #[allow(dead_code)]
 const ALLOWLIST_JSON: &str = include_str!("../../data/allowlist.json");
 
-/// Loads the bundled npm, PyPI, crates.io and RubyGems popular-package lists
-/// and returns them as a single combined list.
+/// Loads the bundled npm, PyPI, crates.io, RubyGems, Go module and Packagist
+/// popular-package lists and returns them as a single combined list.
 ///
-/// npm entries come first, in file order, followed by PyPI, crates.io and
-/// then RubyGems entries, each in file order. Names are returned as-is; no
-/// normalisation or de-duplication is applied — that belongs with the
-/// (not-yet-written) scoring logic.
+/// npm entries come first, in file order, followed by PyPI, crates.io,
+/// RubyGems, Go and then Packagist entries, each in file order. Names are
+/// returned as-is; no normalisation or de-duplication is applied — that
+/// belongs with the (not-yet-written) scoring logic.
 pub fn load_popular_packages() -> Vec<String> {
     let mut combined = parse_string_array(NPM_TOP_PACKAGES_JSON);
     combined.extend(parse_string_array(PYPI_TOP_PACKAGES_JSON));
     combined.extend(parse_string_array(CRATES_TOP_PACKAGES_JSON));
     combined.extend(parse_string_array(RUBYGEMS_TOP_PACKAGES_JSON));
+    combined.extend(parse_string_array(GO_TOP_PACKAGES_JSON));
+    combined.extend(parse_string_array(PACKAGIST_TOP_PACKAGES_JSON));
     combined
 }
 
-/// The npm, PyPI, crates.io and RubyGems lists, parsed once and cached for
-/// the life of the process.
-fn registry_lists() -> &'static [Vec<String>; 4] {
-    static LISTS: OnceLock<[Vec<String>; 4]> = OnceLock::new();
+/// The npm, PyPI, crates.io, RubyGems, Go and Packagist lists, parsed once
+/// and cached for the life of the process.
+fn registry_lists() -> &'static [Vec<String>; 6] {
+    static LISTS: OnceLock<[Vec<String>; 6]> = OnceLock::new();
     LISTS.get_or_init(|| {
         [
             parse_string_array(NPM_TOP_PACKAGES_JSON),
             parse_string_array(PYPI_TOP_PACKAGES_JSON),
             parse_string_array(CRATES_TOP_PACKAGES_JSON),
             parse_string_array(RUBYGEMS_TOP_PACKAGES_JSON),
+            parse_string_array(GO_TOP_PACKAGES_JSON),
+            parse_string_array(PACKAGIST_TOP_PACKAGES_JSON),
         ]
     })
 }
@@ -183,6 +197,18 @@ mod tests {
             is_valid_name: is_valid_gem_name,
             identity: str::to_string,
         },
+        Dataset {
+            file: "go-top1000.json",
+            raw: GO_TOP_PACKAGES_JSON,
+            is_valid_name: is_valid_go_module_name,
+            identity: str::to_string,
+        },
+        Dataset {
+            file: "packagist-top1000.json",
+            raw: PACKAGIST_TOP_PACKAGES_JSON,
+            is_valid_name: is_valid_packagist_name,
+            identity: str::to_string,
+        },
     ];
 
     /// npm: an optional `@scope/` prefix, then a name, each made of
@@ -234,6 +260,34 @@ mod tests {
             && name
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-._".contains(c))
+    }
+
+    /// Go modules: a slash-separated import path whose segments are made of
+    /// `a-z 0-9 - . _ ~`, none empty, and the whole path lowercase.
+    fn is_valid_go_module_name(name: &str) -> bool {
+        !name.is_empty()
+            && name.split('/').all(|segment| {
+                !segment.is_empty()
+                    && segment
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-._~".contains(c))
+            })
+    }
+
+    /// Packagist: `vendor/package`, each part made of `a-z 0-9 - . _`, not
+    /// empty and starting with a letter or digit.
+    fn is_valid_packagist_name(name: &str) -> bool {
+        fn is_valid_part(part: &str) -> bool {
+            part.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-._".contains(c))
+        }
+
+        match name.split_once('/') {
+            Some((vendor, package)) => is_valid_part(vendor) && is_valid_part(package),
+            None => false,
+        }
     }
 
     /// PEP 503 normalisation: runs of `-`, `_` and `.` collapse to one `-`,
@@ -387,6 +441,78 @@ mod tests {
                 "expected gem '{name}' in the combined list"
             );
         }
+
+        // Two of the most-imported Go modules.
+        for name in ["github.com/gin-gonic/gin", "github.com/spf13/cobra"] {
+            assert!(
+                packages.iter().any(|p| p == name),
+                "expected Go module '{name}' in the combined list"
+            );
+        }
+
+        // Two of the most-installed Composer packages.
+        for name in ["laravel/framework", "symfony/console"] {
+            assert!(
+                packages.iter().any(|p| p == name),
+                "expected Packagist package '{name}' in the combined list"
+            );
+        }
+    }
+
+    /// Levenshtein distance between two strings, used to model the
+    /// "one edit away from a popular name" typosquat signal.
+    fn edit_distance(a: &str, b: &str) -> usize {
+        let b_chars: Vec<char> = b.chars().collect();
+        let mut prev: Vec<usize> = (0..=b_chars.len()).collect();
+        let mut curr = vec![0usize; b_chars.len() + 1];
+        for (i, a_char) in a.chars().enumerate() {
+            curr[0] = i + 1;
+            for (j, b_char) in b_chars.iter().enumerate() {
+                let cost = usize::from(a_char != *b_char);
+                curr[j + 1] = (prev[j] + cost).min(prev[j + 1] + 1).min(curr[j] + 1);
+            }
+            std::mem::swap(&mut prev, &mut curr);
+        }
+        prev[b_chars.len()]
+    }
+
+    /// Whether `candidate` is a plausible typosquat of any name in `list`:
+    /// exactly one edit away from a listed name it does not itself equal.
+    fn is_typosquat_of(candidate: &str, list: &[String]) -> bool {
+        list.iter()
+            .any(|name| name != candidate && edit_distance(candidate, name) == 1)
+    }
+
+    #[test]
+    fn known_go_module_typosquat_is_flagged() {
+        let go = parse_string_array(GO_TOP_PACKAGES_JSON);
+        // `github.com/gin-gonic/gin` is a top Go module; a one-character
+        // misspelling of it must be recognised as a typosquat.
+        let typosquat = "github.com/gin-gonic/gim";
+        assert!(
+            go.iter().any(|name| name == "github.com/gin-gonic/gin"),
+            "expected 'github.com/gin-gonic/gin' in the Go dataset"
+        );
+        assert!(
+            is_typosquat_of(typosquat, &go),
+            "expected {typosquat:?} to be flagged as a Go module typosquat"
+        );
+    }
+
+    #[test]
+    fn known_packagist_typosquat_is_flagged() {
+        let packagist = parse_string_array(PACKAGIST_TOP_PACKAGES_JSON);
+        // `laravel/framework` is a top Composer package; a one-character
+        // misspelling of it must be recognised as a typosquat.
+        let typosquat = "laravel/framewerk";
+        assert!(
+            packagist.iter().any(|name| name == "laravel/framework"),
+            "expected 'laravel/framework' in the Packagist dataset"
+        );
+        assert!(
+            is_typosquat_of(typosquat, &packagist),
+            "expected {typosquat:?} to be flagged as a Packagist typosquat"
+        );
     }
 
     #[test]
