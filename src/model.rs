@@ -73,6 +73,12 @@ pub struct Finding {
     /// How the affected package is reached; see [`Dependency::path`].
     pub path: Vec<String>,
     pub kind: FindingKind,
+    /// True if a CVE alias of this finding appears in CISA's Known Exploited
+    /// Vulnerabilities list.
+    pub known_exploited: bool,
+    /// The FIRST EPSS exploit-probability score (0.0–1.0) for this finding's
+    /// CVE alias, if one is available.
+    pub epss_score: Option<f64>,
 }
 
 impl fmt::Display for Finding {
@@ -417,6 +423,8 @@ mod tests {
                 distance_match: Some(("express".to_string(), 1)),
                 homoglyph_match: None,
             },
+            known_exploited: false,
+            epss_score: None,
         };
         assert_eq!(finding.issue_ref(), "npm:expresss@1.0.0#typosquat:express");
     }

@@ -140,6 +140,20 @@ enum Command {
         #[arg(value_enum)]
         shell: Shell,
     },
+    /// Inspect or clear the OSV response cache
+    Cache {
+        #[command(subcommand)]
+        action: CacheAction,
+    },
+}
+
+/// Subcommands for `depradar cache`.
+#[derive(Debug, Subcommand)]
+enum CacheAction {
+    /// Print the cache path, entry count and total size
+    Info,
+    /// Delete the cache directory
+    Clear,
 }
 
 /// Package registry to watch.
@@ -368,6 +382,58 @@ fn main() -> ExitCode {
             );
             ExitCode::SUCCESS
         }
+        Command::Cache { action } => run_cache(action, cli.format.unwrap_or(Format::Text)),
+    }
+}
+
+/// Runs `depradar cache info` or `depradar cache clear`.
+fn run_cache(action: CacheAction, format: Format) -> ExitCode {
+    use deprader::cve::cache;
+
+    match action {
+        CacheAction::Info => {
+            let info = match cache::cache_info() {
+                Ok(info) => info,
+                Err(err) => {
+                    let message = err.to_string();
+                    eprintln!("error: {message}");
+                    if format == Format::Json {
+                        print_json(&json!({ "error": message }));
+                    }
+                    return ExitCode::from(2);
+                }
+            };
+            match format {
+                Format::Text => {
+                    println!("Cache path: {}", info.path.display());
+                    println!("Entries: {}", info.entries);
+                    println!("Size: {} bytes", info.size_bytes);
+                }
+                Format::Json => print_json(&json!({
+                    "path": info.path,
+                    "entries": info.entries,
+                    "size_bytes": info.size_bytes,
+                })),
+            }
+            ExitCode::SUCCESS
+        }
+        CacheAction::Clear => match cache::clear_cache() {
+            Ok(path) => {
+                match format {
+                    Format::Text => println!("Cleared cache at {}", path.display()),
+                    Format::Json => print_json(&json!({ "cleared": path })),
+                }
+                ExitCode::SUCCESS
+            }
+            Err(err) => {
+                let message = err.to_string();
+                eprintln!("error: {message}");
+                if format == Format::Json {
+                    print_json(&json!({ "error": message }));
+                }
+                ExitCode::from(2)
+            }
+        },
     }
 }
 
@@ -594,11 +660,50 @@ fn scan(
             !is_excluded(r.path.strip_prefix(path).unwrap_or(&r.path), exclude)
                 && selected_ecosystem(&r.path, ecosystems)
         });
+        if !offline {
+            for lockfile in &mut report.lockfiles {
+                enrich_findings(&mut lockfile.findings);
+            }
+        }
         Ok(Scanned::Dir(report))
     } else {
-        scan_lockfile(path, &opts)
-            .map(Scanned::File)
-            .map_err(|err| err.to_string())
+        let mut report = scan_lockfile(path, &opts).map_err(|err| err.to_string())?;
+        if !offline {
+            enrich_findings(&mut report.findings);
+        }
+        Ok(Scanned::File(report))
+    }
+}
+
+/// Enriches vulnerability findings with KEV and EPSS data.
+///
+/// Failures are non-fatal: a missing feed simply leaves the fields unset.
+fn enrich_findings(findings: &mut [Finding]) {
+    use deprader::cve::{epss, kev};
+
+    let cve_ids: Vec<String> = findings
+        .iter()
+        .filter_map(|finding| match &finding.kind {
+            FindingKind::Vulnerability { advisory_id } => Some(advisory_id.clone()),
+            _ => None,
+        })
+        .collect();
+    if cve_ids.is_empty() {
+        return;
+    }
+
+    let kev_ids = kev::known_exploited_ids().unwrap_or_default();
+    let epss_scores = epss::scores_for(&cve_ids).unwrap_or_default();
+
+    for finding in findings.iter_mut() {
+        if let FindingKind::Vulnerability { advisory_id } = &finding.kind {
+            if kev_ids.contains(advisory_id) {
+                finding.known_exploited = true;
+            }
+            if let Some(score) = epss_scores.get(advisory_id) {
+                finding.epss_score = Some(*score);
+            }
+        }
     }
 }
 
@@ -851,6 +956,8 @@ fn finding_json(finding: &Finding) -> Value {
         FindingKind::Vulnerability { advisory_id } => json!({
             "kind": "vulnerability",
             "advisory_id": advisory_id,
+            "known_exploited": finding.known_exploited,
+            "epss_score": finding.epss_score,
         }),
         FindingKind::Deprecated { message } => json!({"kind": "deprecated", "message": message}),
         FindingKind::License { license, allowed } => {

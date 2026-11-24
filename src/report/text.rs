@@ -70,6 +70,34 @@ fn tag(severity: Severity, color: bool) -> String {
     }
 }
 
+/// `[KNOWN EXPLOITED]`-style marker, colored if asked.
+fn known_exploited_tag(color: bool) -> String {
+    let text = "[KNOWN EXPLOITED]".to_string();
+    if color {
+        text.red().bold().to_string()
+    } else {
+        text
+    }
+}
+
+/// Renders a single finding line, including the KEV marker and EPSS score
+/// when present.
+fn finding_line(
+    finding: &crate::pipeline::Finding,
+    severity: Severity,
+    color: bool,
+) -> String {
+    let mut line = format!("{} {finding}", tag(severity, color));
+    if finding.known_exploited {
+        line.push(' ');
+        line.push_str(&known_exploited_tag(color));
+    }
+    if let Some(epss) = finding.epss {
+        let _ = write!(line, " (EPSS: {epss:.2})");
+    }
+    line
+}
+
 /// Renders `report` for the terminal.
 pub fn render(report: &Report, advisories: &AdvisorySeverities, opts: &TextOptions) -> String {
     let mut out = String::new();
@@ -87,7 +115,7 @@ fn write_report(
     if opts.verbosity == Verbosity::Quiet {
         for finding in &report.findings {
             let severity = severity_of(finding, advisories);
-            writeln!(out, "{} {finding}", tag(severity, opts.color))?;
+            writeln!(out, "{}", finding_line(finding, severity, opts.color))?;
         }
         return writeln!(out, "{}", summary_line(report));
     }
@@ -127,7 +155,7 @@ fn write_report(
         writeln!(out, "\nFindings ({}):", report.findings.len())?;
         for finding in &report.findings {
             let severity = severity_of(finding, advisories);
-            writeln!(out, "  - {} {finding}", tag(severity, opts.color))?;
+            writeln!(out, "  - {}", finding_line(finding, severity, opts.color))?;
         }
     }
 
@@ -197,6 +225,7 @@ fn format_duration(elapsed: std::time::Duration) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipeline::{Finding, FindingKind, Report, ReportSummary};
 
     #[test]
     fn no_color_wins_over_everything() {
@@ -233,5 +262,66 @@ mod tests {
             elapsed: std::time::Duration::from_micros(1_240),
         };
         assert_eq!(format_timing(&timing), "parse: 1.2 ms");
+    }
+
+    fn sample_finding() -> Finding {
+        Finding {
+            kind: FindingKind::Vulnerability,
+            package: "openssl".to_string(),
+            version: Some("1.0.0".to_string()),
+            aliases: vec!["CVE-2021-44228".to_string()],
+            known_exploited: true,
+            epss: Some(0.97),
+            ..Finding::default()
+        }
+    }
+
+    fn sample_report(finding: Finding) -> Report {
+        Report {
+            path: std::path::PathBuf::from("Cargo.toml"),
+            findings: vec![finding],
+            summary: ReportSummary {
+                vulnerabilities: 1,
+                ..ReportSummary::default()
+            },
+            ..Report::default()
+        }
+    }
+
+    #[test]
+    fn renders_known_exploited_marker_and_epss_score() {
+        let report = sample_report(sample_finding());
+        let advisories = AdvisorySeverities::default();
+        for verbosity in [Verbosity::Quiet, Verbosity::Normal] {
+            let opts = TextOptions {
+                color: false,
+                verbosity,
+            };
+            let text = render(&report, &advisories, &opts);
+            assert!(
+                text.contains("[KNOWN EXPLOITED]"),
+                "missing KEV marker in {verbosity:?}: {text}"
+            );
+            assert!(
+                text.contains("EPSS: 0.97"),
+                "missing EPSS score in {verbosity:?}: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn omits_marker_and_score_when_absent() {
+        let mut finding = sample_finding();
+        finding.known_exploited = false;
+        finding.epss = None;
+        let report = sample_report(finding);
+        let advisories = AdvisorySeverities::default();
+        let opts = TextOptions {
+            color: false,
+            verbosity: Verbosity::Normal,
+        };
+        let text = render(&report, &advisories, &opts);
+        assert!(!text.contains("[KNOWN EXPLOITED]"));
+        assert!(!text.contains("EPSS:"));
     }
 }

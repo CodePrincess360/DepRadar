@@ -165,7 +165,11 @@ fn write_finding_details(out: &mut String, finding: &crate::model::Finding) -> s
 
             writeln!(out, "\n**Recommendation**: Remove this dependency immediately and verify it was installed intentionally.")?;
         }
-        FindingKind::Vulnerability { advisory_id } => {
+        FindingKind::Vulnerability {
+            advisory_id,
+            known_exploited,
+            epss_score,
+        } => {
             writeln!(out, "#### Details\n")?;
             writeln!(out, "Known vulnerability detected.\n")?;
             writeln!(out, "- **Advisory ID**: `{}`", advisory_id)?;
@@ -174,6 +178,15 @@ fn write_finding_details(out: &mut String, finding: &crate::model::Finding) -> s
                 "- **Reference**: [View on OSV](https://osv.dev/vulnerability/{})",
                 advisory_id
             )?;
+            if *known_exploited {
+                writeln!(
+                    out,
+                    "- **Known exploited**: ⚠️ Listed in CISA's Known Exploited Vulnerabilities catalog"
+                )?;
+            }
+            if let Some(score) = epss_score {
+                writeln!(out, "- **EPSS score**: {:.2}%", score * 100.0)?;
+            }
             writeln!(
                 out,
                 "\n**Recommendation**: Update to a patched version or find an alternative package."
@@ -243,6 +256,8 @@ mod tests {
                     ],
                     kind: FindingKind::Vulnerability {
                         advisory_id: "GHSA-29mw-wpgm-hmr9".to_string(),
+                        known_exploited: false,
+                        epss_score: None,
                     },
                 },
             ],
